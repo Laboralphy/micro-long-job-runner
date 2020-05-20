@@ -1,0 +1,25 @@
+html, body, div.vue-application {
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+body, input.command {
+    background-color: black;
+    color: #0F0;
+    font-family: "CernTerminal", monospace;
+    font-size: 32px;
+    font-weight: bold;
+    text-shadow: 0 0 10px;
+    word-wrap: break-word;
+}
+
+input.command {
+    border: none;
+    width: 99%;
+}
+
+.spread-height {
+    height: 100%;
+}

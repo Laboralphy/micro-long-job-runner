@@ -1,0 +1,8 @@
+@font-face {
+	font-family: 'CernTerminal';
+	src:url('cern-terminal.eot');
+	src:url('cern-terminal.eot?#iefix') format('embedded-opentype'),
+		url('cern-terminal.woff') format('woff'),
+		url('cern-terminal.ttf') format('truetype'),
+		url('cern-terminal.svg#icomoon') format('svg');
+}
