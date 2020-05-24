@@ -1,4 +1,4 @@
-import TxatConnector from '../../libs/txat-connector';
+import TxatConnector from '../../../libs/txat-connector';
 import * as TERMINAL_MUTATIONS from '../terminal/mutation_types';
 
 export default function main() {
