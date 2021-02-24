@@ -1,6 +1,12 @@
 export default {
     lines: [],
-    maxLines: 300,
+    maxLineCount: 300,
     command: '',
-    commandPrefix: ''
+    password: false,
+    title: 'Console',
+    buffer: [],
+    busy: false,
+    useBuffer: true,
+    progressLine: '',
+    history: [],
 };

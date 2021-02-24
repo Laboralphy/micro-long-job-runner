@@ -1,1 +1,0 @@
-export const SUBMIT_COMMAND = 'SUBMIT_COMMAND';

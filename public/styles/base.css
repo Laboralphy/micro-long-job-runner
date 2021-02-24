@@ -5,8 +5,11 @@ html, body, div.vue-application {
     margin: 0;
 }
 
+body {
+    background: repeating-linear-gradient(#000, #000 3px, #010 3px, #010 6px);
+}
+
 body, input.command {
-    background-color: black;
     color: #0F0;
     font-family: "CernTerminal", monospace;
     font-size: 32px;
@@ -16,6 +19,7 @@ body, input.command {
 }
 
 input.command {
+    background: none;
     border: none;
     width: 99%;
 }

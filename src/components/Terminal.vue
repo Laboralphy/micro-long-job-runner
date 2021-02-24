@@ -1,35 +1,47 @@
 <template>
-    <div class="terminal" @click="$refs.commandLine.focus()">
-        <div v-for="l in getTerminalContent">{{ l }}&nbsp;</div>
-        <label>
-            <input ref="commandLine" v-model="inputString" class="command" type="text" @keypress.enter="enterCommand"/>
-        </label><br ref="lastItem" />
+  <div class="terminal" @click="$refs.commandLine.focus()">
+    <div class="row header">
+      <span class="menu">≡</span><span class="caption">{{ getTerminalTitle }}</span>
     </div>
+    <div class="row content">
+      <div v-for="l in getTerminalContent">{{ l }}</div>
+      <div v-if="getTerminalProgressLine !== ''">{{ getTerminalProgressLine }}</div>
+      <label ref="commandLine">
+        <input
+            v-if="getTerminalPasswordMode"
+            type="password"
+            placeholder="***password***"
+            v-model="inputString"
+            class="command"
+            @keypress.enter="enterCommand"
+        />
+        <input
+            v-else
+            type="text"
+            v-model="inputString"
+            placeholder="command>"
+            class="command"
+            @keypress.enter="enterCommand"
+        />
+      </label><br ref="lastItem" />
+    </div>
+  </div>
 </template>
 
 <script>
-    import { createNamespacedHelpers } from 'vuex';
-    import * as ACTIONS from '../store/terminal/action_types';
-    const { mapGetters: terminalGetters, mapActions: terminalActions } = createNamespacedHelpers('terminal');
+    import terminalMixin from "../mixins/terminal";
     export default {
         name: "Terminal",
-
+        mixins: [terminalMixin],
         data: function() {
             return {
                 inputString: ''
             }
         },
 
-        computed: {
-            ...terminalGetters(['getTerminalContent'])
-        },
-
         methods: {
-            ...terminalActions({
-                submitCommand: ACTIONS.SUBMIT_COMMAND
-            }),
             enterCommand() {
-                this.submitCommand({content: this.inputString});
+                this.terminalSubmitCommand({command: this.inputString});
                 this.inputString = '';
             }
         },
@@ -41,10 +53,26 @@
 </script>
 
 <style scoped>
-    .terminal {
-        border: none;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-    }
+.terminal {
+  display: flex;
+  flex-flow: column;
+  height: 100%;
+  width: 100%;
+}
+.terminal .row.header {
+  flex-grow: 0;
+  flex-shrink: 1;
+  flex-basis: auto;
+  color: #0F4;
+  background-color: rgba(0, 15, 0, 0.2);
+}
+.terminal .row.content {
+  flex: 1 1 auto;
+  overflow: auto;
+}
+.menu {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+  cursor: pointer;
+}
 </style>

@@ -1,6 +1,5 @@
 import Events from 'events';
 import * as PROTOCOL from './protocol';
-import io from 'socket.io-client';
 
 class TxatConnector {
     constructor() {
