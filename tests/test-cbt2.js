@@ -48,20 +48,14 @@ class Attack {
 
   resolve () {
     const nRoll = roll(20);
-    switch (nRoll) {
-      case 1:
-        break;
-
-      case 20:
-        this.critical = true;
-        this.hit = true;
-        break;
-
-      default:
-        this.attackRoll = this.attacker.attack + nRoll;
-        this.armorClass = this.defender.armor;
-        this.hit = this.attackRoll >= this.armorClass;
-        break;
+    if (nRoll >= this.attacker.weapon.critical.range) {
+      this.critical = true;
+      this.hit = true;
+    }
+    if (nRoll > 1) {
+      this.attackRoll = this.attacker.attack + nRoll;
+      this.armorClass = this.defender.armor;
+      this.hit = this.attackRoll >= this.armorClass;
     }
     if (this.hit) {
       this.damage = this.attacker.weapon.rollDamage(this.critical);
@@ -126,12 +120,36 @@ const scores = {
   total: 0
 };
 
+class WeaponLongSword extends Weapon {
+  constructor() {
+    super();
+    this.damage.sides = 8;
+    this.damage.rolls = 1;
+    this.damage.modifier = 0;
+    this.critical.multiplier = 2;
+    this.critical.range = 19;
+  }
+}
+
+class WeaponScythe extends Weapon {
+  constructor() {
+    super();
+    this.damage.sides = 4;
+    this.damage.rolls = 2;
+    this.damage.modifier = 0;
+    this.critical.multiplier = 4;
+    this.critical.range = 18;
+  }
+}
+
 function buildHero () {
   const c = new Creature();
-  const w = new Weapon();
+  const w = new WeaponLongSword();
+  w.damage.sides = 8;
+  w.damage.critical = 2;
   c.weapon = w;
   c.hp = 20;
-  c.name = 'Hero';
+  c.name = 'Hero #1';
   c.armor = 10 + 6;
   c.attack = 4;
   return c;
@@ -139,12 +157,12 @@ function buildHero () {
 
 function buildGoblin () {
   const c = new Creature();
-  const w = new Weapon();
+  const w = new WeaponScythe();
   c.weapon = w;
-  c.hp = 8;
-  c.name = 'Goblin';
-  c.armor = 10 + 2 + 1 + 2;
-  c.attack = 1;
+  c.hp = 20;
+  c.name = 'Hero #2';
+  c.armor = 10 + 6;
+  c.attack = 4;
   return c;
 }
 

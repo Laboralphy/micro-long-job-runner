@@ -1,9 +1,11 @@
 import terminal from './terminal';
-import plugin from './plugin/terminal';
+import screens from './screens';
+import connectorPlugin from './plugin/connector';
 
 export default {
     modules: {
-        terminal
+        terminal,
+        screens
     },
-    plugins: [plugin()]
+    plugins: [connectorPlugin()]
 };

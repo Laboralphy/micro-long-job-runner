@@ -1,16 +1,11 @@
-html, body, div.vue-application {
+html, body, #vue-application {
     height: 100%;
     width: 100%;
     padding: 0;
     margin: 0;
 }
 
-body {
-    background: repeating-linear-gradient(#000, #000 3px, #010 3px, #010 6px);
-}
-
 body, input.command {
-    color: #0F0;
     font-family: "CernTerminal", monospace;
     font-size: 32px;
     font-weight: bold;
