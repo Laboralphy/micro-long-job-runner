@@ -1,10 +1,13 @@
 <template>
-  <div class="terminal" @click="$refs.commandLine.focus()" :data-theme="theme">
+  <div class="terminal theme" @click="$refs.commandLine.focus()" :data-theme="theme">
     <div class="row header">
       <span class="menu">≡</span><span class="caption">{{ caption }}</span>
     </div>
     <div class="row content">
-      <div v-for="l in content">{{ l }}</div>
+      <RichText
+          :text="content"
+          @link="sText => doLinkAction(sText)"
+      ></RichText>
       <div v-if="status !== undefined">{{ status }}</div>
       <label ref="commandLine">
         <input
@@ -29,8 +32,10 @@
 </template>
 
 <script>
+import RichText from './RichText.vue'
 export default {
   name: "Terminal",
+  components: { RichText },
   props: {
     content: {
       type: Array,
@@ -74,6 +79,9 @@ export default {
       const sCommand = this.inputString;
       this.inputString = '';
       this.$emit('command', { command: sCommand });
+    },
+    doLinkAction: function (sText) {
+      console.log('link:', sText);
     }
   },
 
@@ -85,31 +93,6 @@ export default {
 
 <style scoped>
 
-.terminal[data-theme="green"], .terminal[data-theme="green"] input.command {
-  color: #0F0;
-}
-
-.terminal[data-theme="green"] {
-  background: repeating-linear-gradient(#000, #000 3px, #010 3px, #010 6px);
-}
-
-.terminal[data-theme="amber"], .terminal[data-theme="amber"] input.command {
-  color: #FA0;
-}
-
-.terminal[data-theme="amber"] {
-  background: repeating-linear-gradient(#000, #000 3px, #0F0A00 3px, #0F0A00 6px);
-}
-
-.terminal[data-theme="gray"], .terminal[data-theme="gray"] input.command {
-  color: #CCC;
-}
-
-.terminal[data-theme="gray"] {
-  background: repeating-linear-gradient(#000, #000 3px, #0C0C0C 3px, #0C0C0C 6px);
-}
-
-
 .terminal {
   display: flex;
   flex-flow: column;
@@ -118,9 +101,7 @@ export default {
 }
 
 .terminal .row.header {
-  flex-grow: 0;
-  flex-shrink: 1;
-  flex-basis: auto;
+  flex: 0 1 auto;
 }
 
 .terminal .row.content {

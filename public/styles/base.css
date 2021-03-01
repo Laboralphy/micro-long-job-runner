@@ -21,3 +21,27 @@ input.command {
 .spread-height {
     height: 100%;
 }
+
+.theme[data-theme="green"], .theme[data-theme="green"] input.command {
+    color: #0F0;
+}
+
+.theme[data-theme="green"] {
+    background: repeating-linear-gradient(#000, #000 3px, #010 3px, #010 6px);
+}
+
+.theme[data-theme="amber"], .theme[data-theme="amber"] input.command {
+    color: #FA0;
+}
+
+.theme[data-theme="amber"] {
+    background: repeating-linear-gradient(#000, #000 3px, #0F0A00 3px, #0F0A00 6px);
+}
+
+.theme[data-theme="gray"], .theme[data-theme="gray"] input.command {
+    color: #AAA;
+}
+
+.theme[data-theme="gray"] {
+    background: repeating-linear-gradient(#000, #000 3px, #0A0A0A 3px, #0A0A0A 6px);
+}

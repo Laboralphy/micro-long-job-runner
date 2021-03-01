@@ -23,7 +23,7 @@ class Scriptorium {
             const dir = path.dirname(x)
             const script = require(path.resolve(sBasePath, filename))
             const name = path.basename(filename, JAVASCRIPT_EXTENSION);
-            if (typeof script !== 'function') {
+            if (!(typeof script === 'object' && typeof script.main === 'function')) {
                 throw new Error('expected function for module ' + path.join(sBasePath, filename))
             }
             const id = path.posix.join(dir, name)
@@ -56,6 +56,10 @@ class Scriptorium {
         }
     }
 
+    scriptExists (sId) {
+        return sId in this._routes;
+    }
+
     /**
      * exécute un script
      * @param sId {string} identifiant du script
@@ -65,19 +69,30 @@ class Scriptorium {
      */
     runScript (sId, context, ...params) {
         if (sId in this._routes) {
-            const script = this._routes[sId]
+            const script = this._routes[sId];
             try {
-                const result = script(this.composeContext(context), ...params)
+                const result = script.main(this.composeContext(context), ...params)
                 if (result instanceof Promise) {
                     return result
                 } else {
                     return Promise.resolve(result)
                 }
             } catch (e) {
-                return Promise.reject(e.message)
+                console.error('error in script.');
+                console.error(e);
+                return Promise.reject(e.message);
             }
         } else {
             return Promise.reject('invalid script route : "' + sId + '"');
+        }
+    }
+
+    displayHelp (sId) {
+        if (sId in this._routes) {
+            const script = this._routes[sId];
+            return script.help();
+        } else {
+            return ['Help file not found'];
         }
     }
 

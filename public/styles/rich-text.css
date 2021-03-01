@@ -1,0 +1,146 @@
+.rich-string.b {
+    font-weight: bold;
+}
+
+.rich-string.u {
+    text-decoration: underline;
+}
+
+.rich-string.i {
+    font-style: italic;
+}
+
+.rich-string.s {
+    text-decoration: overline;
+}
+
+.rich-string.br {
+    display: block;
+    content: " ";
+}
+
+.rich-text > .rich-string.tab {
+    margin-left: 2em;
+    display: block;
+}
+
+.rich-string.darkred {
+    color: darkred;
+}
+
+.rich-string.blue {
+    color: blue;
+}
+
+.rich-string.green {
+    color: green;
+}
+
+.rich-string.darkcyan {
+    color: darkcyan;
+}
+
+.rich-string.purple {
+    color: purple;
+}
+
+.rich-string.brown {
+    color: saddlebrown;
+}
+
+.rich-string.gray {
+    color: gray;
+}
+
+.rich-string.lightred {
+    color: red;
+}
+
+.rich-string.lightblue {
+    color: royalblue;
+}
+
+.rich-string.green {
+    color: lime;
+}
+
+.rich-string.cyan {
+    color: cyan;
+}
+
+.rich-string.magenta {
+    color: magenta;
+}
+
+.rich-string.yellow {
+    color: yellow;
+}
+
+.rich-string.white {
+    color: white;
+}
+
+/*
+player action : Lorsqu'un joueur effectue une action, ces messages lui sont envoyé pour qu'il puisse voir un résumé
+de ses actions, ou le résultat.
+ */
+.rich-string.pa {
+    color: #FC0;
+}
+
+/*
+information : Ce text est informatif et n'est pas très important.
+ */
+.rich-string.imp {
+    color: #FFF;
+    font-weight: bolder;
+    text-transform: uppercase;
+}
+/*
+information : Ce text est informatif et n'est pas très important.
+ */
+.rich-string.info {
+    color: #777;
+    font-style: italic;
+}
+
+/*
+other player action : Lorsqu'un joueur effectue une action, ces messages sont envoyés à tous les autres joueurs
+de la pièce.
+ */
+.rich-string.opa {
+    color: #C70;
+}
+
+/*
+Ces message sont transmit à un joueur lorsqu'il foire une action.
+ */
+.rich-string.neg {
+    color: #D00;
+}
+
+/*
+Ces message sont transmit à un joueur lorsqu'il réussis une action.
+ */
+.rich-string.pos {
+    color: #0F4;
+}
+
+/*
+Options
+ */
+.rich-string.opt {
+    color: #0099ff;
+}
+
+.rich-string.link {
+    color: #0099ff;
+    cursor: pointer;
+}
+
+.rich-string.link:hover {
+    color:           #72c4fd;
+    cursor:          pointer;
+    text-shadow:     0 0 0.2em darkblue;
+    text-decoration: underline;
+}

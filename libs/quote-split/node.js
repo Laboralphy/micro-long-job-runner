@@ -4,11 +4,11 @@
  * @param str {string} input string
  * @return {string[]} output array
  */
-export function quoteSplit(str) {
+module.exports = function quoteSplit(str) {
     return str
         .match(/\w+|"[^"]+"/g)
         .map(s => s
             .replace(/^"/, '')
             .replace(/"$/, '')
         );
-}
+};

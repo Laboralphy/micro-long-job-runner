@@ -4,5 +4,5 @@ const ServiceMUD = require('./services/mud');
 const wss = new WSS();
 wss.service(new ServiceFront());
 wss.service(new ServiceMUD());
-wss.listen(8080);
-console.log('listening on port 8080');
+wss.listen(8044);
+console.log('listening on port 8044');

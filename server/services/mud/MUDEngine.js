@@ -68,6 +68,7 @@ class MUDEngine {
                     "roomPlayerLeft": "%s s'éloigne %s.",
                     "roomPicklockSuccess": "%s vient de crocheter une serrure sur la porte située %s.",
                     "roomPicklockFailed": "%s ne parvient pas à crocheter une serrure sur la porte située %s.",
+                    "roomPlayerQuit": "%s vient de disparaître !"
                 },
                 "nav": {
                     "doorLocked": "verrouillée",
@@ -75,6 +76,17 @@ class MUDEngine {
                     "doorCode": "par code secret",
                     "doorKey": "nécessite: %s",
                     "doorLockable": "déverrouillée"
+                },
+                "errors": {
+                    "invalidPlayerName": "Ce nom est invalide. Un nom doit comporter entre 2 et 20 caractères sans espace."
+                },
+                "ui": {
+                    "visualDescExits": "Issues",
+                    "visualDescObjects": "Objets",
+                    "visualDescCreatures": "Personnages",
+                    "visualDescNoObject": "Aucun objet visible.",
+                    "visualDescNoCreature": "Aucun personnage visible.",
+                    "visualDescOtherPlayers": "Joueurs"
                 }
             },
             "entities": {},
@@ -87,9 +99,19 @@ class MUDEngine {
                     "desc": "Une petite clé plate sur laquelle est inscrit le nombre 3011"
                 }
             },
+            "sectors": {
+                "sector::0001": {
+                    "name": "Premier secteur",
+                    "desc": [
+                      "Cet ensemble de couloirs et bureaux constitue le premier secteur jamais construit sur ce MUD.",
+                      "C'est pourquoi il semble si ennuyeux à explorer"
+                    ]
+                }
+            },
             "rooms": {
                 "room::b3009": {
                     "name": "Bureau 3009",
+                    "sector": "sector::0001",
                     "desc": [
                         "Le bureau 3009 contient quelques mobiliers de travail espacés les uns aux autres.",
                         "De nombreux écrans sont posés sur les meubles."
@@ -99,10 +121,14 @@ class MUDEngine {
                             "to": "room::c3000b",
                             "desc": "Une porte donnant sur le couloir"
                         }
-                    }
+                    },
+                    "items": [
+                        "item::k3011"
+                    ]
                 },
                 "room::b3010": {
                     "name": "Bureau 3010",
+                    "sector": "sector::0001",
                     "desc": [
                         "Le bureau 3010 contient plusieurs mobiliers de travail collés les uns aux autres.",
                         "De nombreux écrans sont posés sur les meubles. Un poster de Misa est accroché au mur.",
@@ -117,6 +143,7 @@ class MUDEngine {
                 },
                 "room::b3011": {
                     "name": "Bureau 3011",
+                    "sector": "sector::0001",
                     "desc": [
                         "Le bureau 3011 est une petite pièce ne contenant qu'une seule table de travail."
                     ],
@@ -129,9 +156,10 @@ class MUDEngine {
                 },
                 "room::c3000b": {
                     "name": "Couloir 3000 nord",
+                    "sector": "sector::0001",
                     "desc": [
-                        "Un couloir sombre qui s'étend du nord au sud. Une porte située dans le mur Ouest mène à un bureau.",
-                        "Au nord le couloir est plongé dans l'obscurité, il n'y a rien à faire là bas. Au sud le couloir continue, faiblement éclairé."
+                        "Le couloir est faiblement éclairé par une seule lampe située au sud, et une porte s'ouvre sur le mur est.",
+                        "Au nord le couloir plonge dans l'obscurité, il n'est pas necessaire d'y aller."
                     ],
                     "nav": {
                         "s": {
@@ -153,6 +181,7 @@ class MUDEngine {
                 },
                 "room::t3000b": {
                     "name": "Les toilettes",
+                    "sector": "sector::0001",
                     "desc": [
                         "Des toilettes !"
                     ],
@@ -165,9 +194,9 @@ class MUDEngine {
                 },
                 "room::c3000c": {
                     "name": "Couloir 3000 centre",
+                    "sector": "sector::0001",
                     "desc": [
-                        "Un couloir sombre qui s'étend du nord au sud. Une porte située dans le mur Ouest mène à un bureau.",
-                        "D'autres portes sont visibles vers le nord et vers le sud."
+                      "Le couloir est éclairé par la seule lampe que vous pouvez voir, cette lampe est fixée au plafont précisément en face d'une porte s'ouvrant sur le mur est."
                     ],
                     "nav": {
                         "n": {
@@ -190,9 +219,10 @@ class MUDEngine {
                 },
                 "room::c3000d": {
                     "name": "Couloir 3000 sud",
+                    "sector": "sector::0001",
                     "desc": [
-                        "Un couloir sombre qui s'étend du nord au sud. Une porte située dans le mur Ouest mène à un bureau.",
-                        "D'autres portes sont visibles vers le nord, tandis qu'au sud, le couloir est plongé dans le noir."
+                        "Le couloir est faiblement éclairé par une seule lampe située au nord, et une porte s'ouvre sur le mur est.",
+                        "Au sud le couloir plonge dans l'obscurité et on ne distingue absolument rien au delà de quelques mètres."
                     ],
                     "nav": {
                         "n": {
@@ -214,9 +244,10 @@ class MUDEngine {
         }
     }
 
-    getString (sPath) {
+    getString (sPath, ...params) {
         try {
-            return sPath.split('.').reduce((prev, curr) => prev[curr], this._state.strings).substr(0);
+            const sString = sPath.split('.').reduce((prev, curr) => prev[curr], this._state.strings).substr(0);
+            return util.format(sString, ...params);
         } catch (e) {
             throw new KeyNotFoundError(sPath, 'strings');
         }
@@ -231,12 +262,17 @@ class MUDEngine {
     }
 
     createNewPlayer(id, sName) {
+        // verifier si le nom est valide
+        if (!sName.match(/^\S{2,20}$/)) {
+            return null;
+        }
         const idPlayer = this.getPlayerId(id);
         const oPlayer = this._state.entities[idPlayer] = {
             type: 'player',
             id,
             name: sName,
-            location: '',
+            location: '', // localisation (pièce) du joueur
+            sector: '', // indique le secteur dans lequel le joueur est.
             inventory: [
                 'item::k3011xx'
             ],
@@ -250,7 +286,15 @@ class MUDEngine {
         this.setEntityLocation(idPlayer, 'room::b3009');
         const oRoom = this.getRoom(idRoom);
         this.notifyPlayerEvent(idPlayer, '$events.youAreIn', oRoom.name);
-        this.notifyRoomEvent(idRoom, idPlayer, '$events.roomPlayerArrived', oPlayer.name, oRoom.name);
+        this.notifyRoomEvent(idRoom, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
+        return idPlayer;
+    }
+
+    destroyPlayer (idPlayer) {
+        const oPlayer = this._state.entities[idPlayer];
+        const idRoom = this.getEntityLocation(idPlayer);
+        this.notifyRoomEvent(idRoom, idPlayer, '$events.roomPlayerQuit', oPlayer.name);
+        this.removeRoomEntity(idRoom, idPlayer);
     }
 
     /**
@@ -428,6 +472,22 @@ class MUDEngine {
         return sSkill in oSkills ? oSkills[sSkill] : 0;
     }
 
+    /**
+     * Renvoie la liste des identifiant des objet qui sont dans la pièce
+     * @param idRoom {string} identifiant room
+     * @return {Objects}
+     */
+    getRoomItems (idRoom) {
+        const oRoom = this.getRoom(idRoom);
+        const oList = {};
+        if ('items' in oRoom) {
+            oRoom.items.forEach((idItem, iItem) => {
+                oList['i' + iItem] = idItem
+            });
+        }
+        return oList;
+    }
+
     getRoomEntities (idRoom) {
         const oRoom = this.getRoom(idRoom);
         if (!('entities' in oRoom)) {
@@ -488,7 +548,7 @@ class MUDEngine {
         aPlayers.forEach(p => {
             if (p !== idPlayer) {
                 const oPlayer = this.getPlayer(p);
-                this._events.emit('player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
+                this._events.emit('other-player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
             }
         })
     }
@@ -503,7 +563,7 @@ class MUDEngine {
         const sDirStr = this.getString('directions.v' + sDirection);
         const oDoor = this.getDoor(idRoom, sDirection);
         const a = [
-            ' [' + sDirection + ']',
+            '● [' + sDirection + ']',
             sDirStr.charAt(0).toUpperCase() + sDirStr.substr(1),
             ':',
             oDoor.desc
@@ -513,7 +573,7 @@ class MUDEngine {
             b.push(this.getString('nav.doorLocked'));
             const sKey = oDoorStatus.key;
             if (sKey) {
-                b.push(util.format(this.getString('nav.doorKey'), this._state.items[sKey].name));
+                b.push(this.getString('nav.doorKey', this._state.items[sKey].name));
             }
             const sCode = oDoorStatus.code;
             if (sCode !== '') {
@@ -529,6 +589,80 @@ class MUDEngine {
     }
 
     /**
+     * Affiche une description du secteur actuellement occupé par le joueur
+     * @param idPlayer
+     */
+    renderPlayerSector (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        const idRoom = oPlayer.location;
+        const oRoom = this.getRoom(idRoom);
+        const aOutput = [];
+        // secteur
+        // afficher les info du secteur : le joueur viens d'y pénétrer
+        const oSector = this._state.sectors[oRoom.sector];
+        aOutput.push('{imp ' + oSector.name + '}', ...oSector.desc);
+        return aOutput;
+    }
+
+    renderPlayerRoom (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        const idRoom = oPlayer.location;
+        const oRoom = this.getRoom(idRoom);
+        const aOutput = [];
+        // description de la pièces
+        aOutput.push('{imp ' + oRoom.name + '}', ...oRoom.desc);
+        return aOutput;
+    }
+
+    renderPlayerExits (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        const idRoom = oPlayer.location;
+        const oRoom = this.getRoom(idRoom);
+        const aOutput = [];
+        // issues
+        aOutput.push('{imp ' + this.getString('ui.visualDescExits') + '}');
+        for (const sDirection in oRoom.nav) {
+            const oDoorStatus = this.getPlayerDoorStatus(idPlayer, sDirection);
+            if (oDoorStatus.visible) {
+                aOutput.push(this.renderDoor(idRoom, sDirection, oDoorStatus));
+            }
+        }
+        return aOutput;
+    }
+
+    renderPlayerObjectsInRoom (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        const idRoom = oPlayer.location;
+        const oRoom = this.getRoom(idRoom);
+        const oItems = this.getRoomItems(idRoom);
+        const aOutput = [];
+        for (let iItem in oItems) {
+            const idItem = oItems[iItem];
+            const { subtype, name, desc } = this._state.items[idItem];
+            aOutput.push('● [' + iItem + '] ' + name);
+        }
+        if (aOutput.length > 0) {
+            aOutput.unshift('{imp ' + this.getString('ui.visualDescObjects') + '}');
+        }
+        return aOutput;
+    }
+
+    renderOtherPlayersInRoom (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        const idRoom = oPlayer.location;
+        const aOtherPlayers = this.getPlayersInRoom(idRoom).filter(idp => idp !== idPlayer);
+        const aOutput = [];
+        if (aOtherPlayers.length > 0) {
+            aOutput.push('{imp ' + this.getString('ui.visualDescOtherPlayers') + '}');
+            aOtherPlayers.forEach((idp, iPlayer) => {
+                const oOtherPlayer = this.getPlayer(idp);
+                aOutput.push('● {link "look ' + idp + '" ' + oOtherPlayer.name + '}');
+            });
+        }
+        return aOutput;
+    }
+
+    /**
      * produit un tableau de chaine décrivant la situation visuelle actuelle du joueur
      * @param idPlayer {string} identifiant joueur
      * @returns {string[]}
@@ -537,16 +671,21 @@ class MUDEngine {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
         const oRoom = this.getRoom(idRoom);
-        const aOutput = [
-            oRoom.name,
-            ...oRoom.desc
-        ];
-        for (const sDirection in oRoom.nav) {
-            const oDoorStatus = this.getPlayerDoorStatus(idPlayer, sDirection);
-            if (oDoorStatus.visible) {
-                aOutput.push(this.renderDoor(idRoom, sDirection, oDoorStatus));
-            }
+        const aOutput = [];
+        // secteur
+        if (oPlayer.sector !== oRoom.sector) {
+            // afficher les info du secteur : le joueur viens d'y pénétrer
+            aOutput.push(...this.renderPlayerSector(idPlayer));
+            oPlayer.sector = oRoom.sector;
         }
+        // description de la pièces
+        aOutput.push(...this.renderPlayerRoom(idPlayer));
+        // issues
+        aOutput.push(...this.renderPlayerExits(idPlayer));
+        // objets contenus dans la pièce
+        aOutput.push(...this.renderPlayerObjectsInRoom(idPlayer));
+        // autres joueurs
+        aOutput.push(...this.renderOtherPlayersInRoom(idPlayer));
         return aOutput;
     }
 
@@ -558,30 +697,13 @@ class MUDEngine {
         const oEntities = this.getRoomEntities(idRoom);
         const aPlayers = [];
         for (const id in oEntities) {
-            if (oEntities.type === 'player') {
+            const oEntity = this.getEntity(id);
+            if (oEntity.type === 'player') {
                 aPlayers.push(id);
             }
         }
         return aPlayers;
     }
-
-    // /**
-    //  * Déplace le joueur d'une pièce à une autre en utilisant la direction donnée
-    //  * @param idPlayer {string} idenfiant joueur
-    //  * @param sDirection {string} direction voulue
-    //  */
-    // actionPlayerMove (idPlayer, sDirection) {
-    //     const { valid, visible, locked, destination } = this.getPlayerDoorStatus(idPlayer, sDirection);
-    //     if (valid && visible && !locked) {
-    //         this.notifyPlayerEvent(idPlayer, '$events.walk', '$directions.v' + sDirection);
-    //         const oPlayer = this.getPlayer(idPlayer);
-    //         this.notifyRoomEvent(oPlayer.location, idPlayer, '$events.roomPlayerLeft', oPlayer.name,'$directions.v' + sDirection);
-    //         this.setEntityLocation(idPlayer, destination);
-    //         this.notifyRoomEvent(oPlayer.location, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
-    //     } else {
-    //         this.notifyPlayerEvent(idPlayer, '$events.cannotWalk', '$directions.v' + sDirection);
-    //     }
-    // }
 
     /**
      * Le joueur va tenter de crocheter une serrure de porte

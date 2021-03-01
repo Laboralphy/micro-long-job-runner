@@ -119,7 +119,7 @@ class CommandRepository {
      * @param sIdentifier {string} Pseudo initial de l'utilisateur
      */
     async cmd_login (sIdentifier) {
-        await this._store.termPrint('#system', 'Connecting...x');
+        await this._store.termPrint('#system', 'Connecting...');
         await this._connector.connect();
         await this._store.termPrint('#system', 'Connected to ' + this._connector.remoteAddress);
         return this._send('CMD::login', sIdentifier);
