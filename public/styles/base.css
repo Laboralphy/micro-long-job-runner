@@ -6,10 +6,9 @@ html, body, #vue-application {
 }
 
 body, input.command {
-    font-family: "CernTerminal", monospace;
-    font-size: 32px;
+    font-family: "Flexi_IBM_VGA_False", monospace;
+    font-size: 24px;
     font-weight: bold;
-    text-shadow: 0 0 10px;
     word-wrap: break-word;
 }
 

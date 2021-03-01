@@ -119,59 +119,26 @@ class CommandRepository {
      * @param sIdentifier {string} Pseudo initial de l'utilisateur
      */
     async cmd_login (sIdentifier) {
-        await this._store.termPrint('#system', 'Connecting...');
+        await this._store.termPrint('#system', 'Connecting...x');
         await this._connector.connect();
         await this._store.termPrint('#system', 'Connected to ' + this._connector.remoteAddress);
-        return this._send('login', sIdentifier);
-    }
-
-    cmd_join (sChannel) {
-        return this._send('chat/join', sChannel);
-    }
-
-    cmd_say (sMessage) {
-        return this._send('chat/say', this._store.getTermActiveScreen(), sMessage);
-    }
-
-    cmd_leave () {
-        return this._send('chat/leave', this._store.getTermActiveScreen());
-    }
-
-    cmd_screen (sScreen) {
-        return this._send('screen', sScreen);
-    }
-
-    /**
-     * The default commands go here
-     * @param sCommand {string} command
-     * @param sArgs {string} remaining command arguments
-     * @returns {Promise<void>}
-     */
-    _defaultCommand (sCommand, sArgs) {
-        this._send(sCommand.toUpperCase(), sArgs);
+        return this._send('CMD::login', sIdentifier);
     }
 
     async command (sInput) {
         try {
             console.info('Store plugin V', 1);
             const sLine = sInput.trim();
-            if (sLine.substr(0, 1) === '/') {
-                // first char is a "/"
-                const aWords = sLine
-                    .substr(1)
-                    .split(' ');
-                // extract command
-                const sCommand = 'cmd_' + aWords.shift().toLowerCase();
-                const sParams = aWords.join(' ');
-                // send command to server
-                if (sCommand in this) {
-                    await this[sCommand](sParams)
-                } else {
-                    await this._defaultCommand(sCommand.toUpperCase(), sParams);
-                }
+            const aWords = sLine.split(' ');
+            // extract command
+            const sCommand = aWords.shift().toLowerCase();
+            const sMeth = 'cmd_' + sCommand;
+            const sParams = aWords.join(' ');
+            // send command to server
+            if (sMeth in this) {
+                await this[sMeth](sParams)
             } else {
-                // by default : command SAY
-                await this.cmd_say(sLine);
+                await this._send('CMD::' + sCommand, sParams);
             }
         } catch (e) {
             await this._store.termPrint('#system', e.message);

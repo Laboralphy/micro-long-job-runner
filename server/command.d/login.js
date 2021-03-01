@@ -1,20 +1,10 @@
 /**
  * Un utilisateur se connecte au systeme
- * - créer un utilisateur pour le système de chat
- * @param txat {object} systeme de chat
  * @param command {object} systeme de commandes
- * @param uid {string} id utilisateur parleur
- * @param name {string}
+ * @param mud {object} moteur du mud
+ * @param uid {string} id utilisateur qui se log
+ * @param name {string} nom fournit par l'utilisatreur
  */
-module.exports = function ({ txat, command }, uid, name) {
-    // créer un utilisateur pour le chat
-    const oTxatUser = txat.createUser({
-        id: uid,
-        name: name
-    });
-    txat.addUser(oTxatUser);
-    // rechercher le canal d'accueil
-    const oHome = txat.channels.find(c => c.types.has('home'));
-    // ajouter l'utilisateur au canal d'accueil
-    command('chat/join', uid, oHome.id)
+module.exports = function ({ mud, command }, uid, name) {
+    mud.createNewPlayer(uid, name);
 }

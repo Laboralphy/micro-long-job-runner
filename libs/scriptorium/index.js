@@ -76,6 +76,8 @@ class Scriptorium {
             } catch (e) {
                 return Promise.reject(e.message)
             }
+        } else {
+            return Promise.reject('invalid script route : "' + sId + '"');
         }
     }
 
