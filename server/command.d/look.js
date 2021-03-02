@@ -1,33 +1,35 @@
-function main ({ mud, print, command }, uid, sType) {
-    const idPlayer = mud.getPlayerId(uid);
-    switch (sType) {
-        case 's':
-            // secteur
+function describeItem ({ print, mud }, oEntity) {
+    const oBlueprint = oEntity.blueprint;
+    oBlueprint.desc.forEach(s => print(s));
+    print(mud.getString('ui.descFieldWeight') + ': ' + oBlueprint.weight);
+}
 
-        break;
+function describePlayer ({ print, mud }, oEntity) {
+}
 
-        case 'r':
-            // pièce
-        break;
+function main (context, s) {
+    const { mud, print, pid } = context;
+    if (s) {
+        const idRoom = mud.getEntityLocation(pid);
+        const oEntity = mud.getRoomLocalEntity(idRoom, s);
+        if (oEntity) {
+            mud.notifyPlayerEvent(pid, '$events.lookEntity', oEntity.name);
+            // entité trouvée grace au local id
+            switch (oEntity.type) {
+                case 'player':
+                    describePlayer(context, oEntity);
+                    break;
 
-        case 'x':
-            // issues
-        break;
-
-        case 'o':
-            // objets
-        break;
-
-        case 'c':
-            // personnage
-        break;
-
-        default:
-            mud.notifyPlayerEvent(idPlayer, 'Vous regardez autour de vous.');
-            mud
-              .renderPlayerVisualReport(idPlayer)
-              .forEach(s => print(s));
-        break;
+                case 'item':
+                    describeItem(context, oEntity);
+                    break;
+            }
+        }
+    } else {
+        mud.notifyPlayerEvent(pid, '$events.lookAround');
+        mud
+          .renderPlayerVisualReport(pid)
+          .forEach(s => print(s));
     }
 }
 

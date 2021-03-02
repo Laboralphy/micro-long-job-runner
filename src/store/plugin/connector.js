@@ -1,4 +1,5 @@
 import Connector from "../../../libs/connector";
+import {quoteSplit} from "../../../libs/quote-split";
 
 class StoreIO {
     constructor (store) {
@@ -129,16 +130,16 @@ class CommandRepository {
         try {
             console.info('Store plugin V', 1);
             const sLine = sInput.trim();
-            const aWords = sLine.split(' ');
+            const aParams = quoteSplit(sLine); // sLine.split(' ');
+            console.log(sLine, aParams);
             // extract command
-            const sCommand = aWords.shift().toLowerCase();
+            const sCommand = aParams.shift().toLowerCase();
             const sMeth = 'cmd_' + sCommand;
-            const sParams = aWords.join(' ');
             // send command to server
             if (sMeth in this) {
-                await this[sMeth](sParams)
+                await this[sMeth](...aParams)
             } else {
-                await this._send('CMD::' + sCommand, sParams);
+                await this._send('CMD::' + sCommand, ...aParams);
             }
         } catch (e) {
             await this._store.termPrint('#system', e.message);

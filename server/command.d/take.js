@@ -1,9 +1,8 @@
-function main ({ mud, print, command }, uid, sIndexItem) {
+function main ({ mud, print, command, pid }, sIndexItem) {
   // récupérer l'objet s'il existe
   // sortir l'objet de la liste des items de la room, et l'intégrer à l'inventaire du joueurs
   // la commande ne fonction que sur les objets
-  const idPlayer = mud.getPlayerId(uid);
-  const idRoom = mud.getEntityLocation(idPlayer);
+  const idRoom = mud.getEntityLocation(pid);
   const oItems = mud.getRoomItems(idRoom);
   if (sIndexItem in oItems) {
 

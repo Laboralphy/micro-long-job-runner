@@ -14,6 +14,9 @@ class ServiceMUD extends ServiceAbstract {
         m.events.on('other-player-event', ({ id, message }) => {
             this.socketEmit(id, 'TERM_PRINT', { screen: null, content: '{opa ' + message + '}' });
         });
+        m.events.on('admin-event', ({ message }) => {
+            console.log('[admin]', message);
+        });
         this._scriptorium = sc;
         this._mud = m;
         const SCRIPT_LOADED_STR = '[scripts] scripts loaded';
@@ -27,17 +30,20 @@ class ServiceMUD extends ServiceAbstract {
         // client is connected
         const socket = client.socket;
         const uid = client.id;
+        const pid = this._mud.getPlayerId(uid);
 
         const context = {
             print: message => this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: message }),
             quit: () => socket.disconnect(),
+            uid,
             help: sPage => this
               ._scriptorium
               .displayHelp(sPage)
               .forEach(p => {
                   this.socketEmit(uid, 'TERM_PRINT', { screen: null, content: p });
               }),
-            mud: this._mud
+            mud: this._mud,
+            pid
         };
 
         socket.onAny((sCommand, args) => {
@@ -46,7 +52,7 @@ class ServiceMUD extends ServiceAbstract {
                 if (this._scriptorium.scriptExists(sScript)) {
                     this
                       ._scriptorium
-                      .runScript(sScript, context, uid, ...args)
+                      .runScript(sScript, context, ...args)
                       .catch(e => {
                           console.error(e);
                           this.getClient(uid).socket.disconnect();
@@ -59,7 +65,7 @@ class ServiceMUD extends ServiceAbstract {
     }
 
     disconnectClient(client) {
-        this._mud.destroyPlayer(this._mud.getPlayerId(client.id));
+        this._mud.destroyEntity(this._mud.getPlayerId(client.id));
     }
 }
 

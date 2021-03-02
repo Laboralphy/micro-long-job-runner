@@ -4,7 +4,7 @@
  * @param uid {string} id utilisateur qui se log
  * @param name {string} nom fournit par l'utilisatreur
  */
-function main ({ quit }, uid, name) {
+function main ({ quit }, name) {
   quit();
 }
 

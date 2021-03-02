@@ -6,6 +6,7 @@
           :key="i"
           :class="'rich-string ' + p.tokens.join(' ')"
           @click="doClick('link' in p ? p.link : false)"
+          :title="'link' in p ? p.link : false"
       >{{ p.text }}</span>
     </div>
     <div class="rich-text" v-else>

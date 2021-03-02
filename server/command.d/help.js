@@ -4,7 +4,7 @@ function help () {
   ];
 }
 
-function main ({ help }, uid, sCommand) {
+function main ({ help }, sCommand) {
   help(sCommand);
 }
 

@@ -1,5 +1,6 @@
 const util = require('util');
 const Events = require('events');
+const DiscardableRegistry = require('../../../libs/discardable-registry');
 
 class KeyNotFoundError extends Error {
     constructor(sKey, sCollection) {
@@ -24,6 +25,13 @@ class RequiredPropertyError extends Error {
 class MUDEngine {
     constructor() {
         this._events = new Events();
+        this._lastId = 0;
+        this._localIdRegs = {
+            i: new DiscardableRegistry('i'), // les objets d'inventaire
+            p: new DiscardableRegistry('p'), // les joueurs
+            o: new DiscardableRegistry('o'), // les objets placables
+            c: new DiscardableRegistry('c')  // les créature et pnj
+        };
         this._state = {
             "strings": {
                 "directions": {
@@ -54,6 +62,8 @@ class MUDEngine {
                 },
                 "events": {
                     "youAreIn": "Vous voici dans : %s.",
+                    "lookAround": "Vous regardez autour de vous.",
+                    "lookEntity": "Vous examinez %s.",
                     "walk": "Vous allez %s.",
                     "cannotWalk": "Vous ne pouvez pas aller %s.",
                     "picklockSuccess": "Vous réussissez à crocheter la serrure.",
@@ -68,7 +78,8 @@ class MUDEngine {
                     "roomPlayerLeft": "%s s'éloigne %s.",
                     "roomPicklockSuccess": "%s vient de crocheter une serrure sur la porte située %s.",
                     "roomPicklockFailed": "%s ne parvient pas à crocheter une serrure sur la porte située %s.",
-                    "roomPlayerQuit": "%s vient de disparaître !"
+                    "roomEntityCreated": "%s vient d'apparaitre !",
+                    "roomEntityDestroyed": "%s vient de disparaître !"
                 },
                 "nav": {
                     "doorLocked": "verrouillée",
@@ -86,17 +97,23 @@ class MUDEngine {
                     "visualDescCreatures": "Personnages",
                     "visualDescNoObject": "Aucun objet visible.",
                     "visualDescNoCreature": "Aucun personnage visible.",
-                    "visualDescOtherPlayers": "Joueurs"
+                    "visualDescOtherPlayers": "Joueurs",
+                    "descFieldName": "Nom",
+                    "descFieldType": "Type",
+                    "descFieldWeight": "Poids"
                 }
             },
             "entities": {},
             "data": {},
-            "items": {
-                "item::k3011": {
+            "blueprints": {
+                "blueprint::k3011": {
                     "type": "item",
                     "subtype": "key",
                     "name": "Clé du bureau 3011",
-                    "desc": "Une petite clé plate sur laquelle est inscrit le nombre 3011"
+                    "desc": [
+                        "Une petite clé plate sur laquelle est inscrit le nombre 3011"
+                    ],
+                    "weight": 0.1
                 }
             },
             "sectors": {
@@ -122,8 +139,10 @@ class MUDEngine {
                             "desc": "Une porte donnant sur le couloir"
                         }
                     },
-                    "items": [
-                        "item::k3011"
+                    "defaultEntities": [
+                        {
+                            "blueprint": "blueprint::k3011"
+                        }
                     ]
                 },
                 "room::b3010": {
@@ -244,6 +263,13 @@ class MUDEngine {
         }
     }
 
+    /**
+     * Renvoie la chaine de caractère dont l'identifiant est passé en paramètre
+     * remplace les %s par les aute paramètre passés lors de l'appel de fonction
+     * @param sPath {string} identifiant de la chaine
+     * @param params {*} des paramètre de substitution optionnels
+     * @returns {string}
+     */
     getString (sPath, ...params) {
         try {
             const sString = sPath.split('.').reduce((prev, curr) => prev[curr], this._state.strings).substr(0);
@@ -261,7 +287,13 @@ class MUDEngine {
         return 'player::' + id;
     }
 
-    createNewPlayer(id, sName) {
+    /**
+     * Création d'un nouveau personnage joueur
+     * @param id {string} identifiant externe (désigné par l'appli cliente) qui sera transformé en identifiant internet au mud
+     * @param sName
+     * @returns {string|null}
+     */
+    createNewPlayer(id, sName, sLocation) {
         // verifier si le nom est valide
         if (!sName.match(/^\S{2,20}$/)) {
             return null;
@@ -273,45 +305,63 @@ class MUDEngine {
             name: sName,
             location: '', // localisation (pièce) du joueur
             sector: '', // indique le secteur dans lequel le joueur est.
-            inventory: [
-                'item::k3011xx'
-            ],
+            inventory: [],
             skills: {
                 spot: 5,
                 picklock: 5
             },
             spotted: {}
         };
-        const idRoom = 'room::b3009';
-        this.setEntityLocation(idPlayer, 'room::b3009');
-        const oRoom = this.getRoom(idRoom);
+        this.setEntityLocation(idPlayer, sLocation);
+        const oRoom = this.getRoom(sLocation);
         this.notifyPlayerEvent(idPlayer, '$events.youAreIn', oRoom.name);
-        this.notifyRoomEvent(idRoom, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
+        this.notifyRoomEvent(sLocation, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
+        this.notifyAdminEvent('new player %s spawned at %s', oPlayer.name, oRoom.name);
         return idPlayer;
     }
 
-    destroyPlayer (idPlayer) {
-        const oPlayer = this._state.entities[idPlayer];
-        const idRoom = this.getEntityLocation(idPlayer);
-        this.notifyRoomEvent(idRoom, idPlayer, '$events.roomPlayerQuit', oPlayer.name);
-        this.removeRoomEntity(idRoom, idPlayer);
+    getEntityBlueprint (idEntity) {
+        return this.getEntity(idEntity).blueprint;
+    }
+
+    createEntity (sBlueprint, sLocation, nCount = 1) {
+        ++this._lastId;
+        const idEntity = 'entity::' + this._lastId;
+        const oBlueprint = this.getBlueprint(sBlueprint);
+        const oEntity = this._state.entities[idEntity] = {
+            blueprint: oBlueprint,
+            name: oBlueprint.name,
+            type: oBlueprint.type,
+            subtype: oBlueprint.subtype,
+            count: nCount,
+            location: ''
+        };
+        this.setEntityLocation(idEntity, sLocation);
+        this.notifyAdminEvent('new entity %s (x%s) created at %s', oEntity.name, nCount, sLocation);
+        return idEntity;
     }
 
     /**
-     * Indique si un joueur possède un objet
-     * @param idPlayer {string} identifiant joueur
-     * @param sItemRef {string} refrence objet recherché
-     * @returns {boolean}
+     * destruction d'une entité
+     * @param idEntity
      */
-    isPlayerPossessingItem(idPlayer, sItemRef) {
-        const oPlayer = this._state.entities[idPlayer];
-        return oPlayer.inventory.includes(sItemRef);
+    destroyEntity (idEntity) {
+        const oEntities = this._state.entities;
+        if (idEntity in oEntities) {
+            const oEntity = this._state.entities[idEntity];
+            const idRoom = this.getEntityLocation(idEntity);
+            this.notifyRoomEvent(idRoom, idEntity, '$events.roomEntityDestroyed', oEntity.name);
+            this.removeRoomEntity(idRoom, idEntity);
+            delete oEntities[idEntity];
+        }
     }
 
-    getPlayerRoom (idPlayer) {
-        const oPlayer = this.getPlayer(idPlayer);
-        const idRoom = oPlayer.location;
-        return this.getRoom(idRoom);
+    getBlueprint (idBlueprint) {
+        if (idBlueprint in this._state.blueprints) {
+            return this._state.blueprints[idBlueprint];
+        } else {
+            throw new KeyNotFoundError(idBlueprint, 'blueprints');
+        }
     }
 
     getEntity (idEntity) {
@@ -323,8 +373,15 @@ class MUDEngine {
         }
     }
 
-    getPlayer (idPlayer) {
-        return this.getEntity(idPlayer);
+    getRoomLocalEntity (idRoom, lid) {
+        const oFoundEntity = this
+            .getRoomEntities(idRoom)
+            .find(e => e.lid === lid);
+        if (oFoundEntity && this.getEntityLocation(oFoundEntity.id)) {
+            return this.getEntity(oFoundEntity.id);
+        } else {
+            return null;
+        }
     }
 
     getRoom (idRoom) {
@@ -346,16 +403,6 @@ class MUDEngine {
         return idRoom + '::' + sDirection;
     }
 
-    setLocalData (id, sVariable, value) {
-        const idVariable = id + '::' + sVariable;
-        this._state.data[idVariable] = value;
-    }
-
-    getLocalData (id, sVariable) {
-        const idVariable = id + '::' + sVariable;
-        return this._state.data[idVariable];
-    }
-
 //  ____                                         _   _  __
 // |  _ \  ___   ___  _ __ ___    __ _ _ __   __| | | |/ /___ _   _ ___
 // | | | |/ _ \ / _ \| '__/ __|  / _` | '_ \ / _` | | ' // _ \ | | / __|
@@ -375,12 +422,12 @@ class MUDEngine {
      * @returns {boolean}
      */
     hasPlayerSpottedDoor (idPlayer, sDirection) {
-        const oPlayer = this.getPlayer(idPlayer);
+        const oPlayer = this.getEntity(idPlayer);
         return this.getSecretId(oPlayer.location, sDirection) in oPlayer.spotted;
     }
 
     setPlayerDoorSpotted (idPlayer, sDirection, value) {
-        const oPlayer = this.getPlayer(idPlayer);
+        const oPlayer = this.getEntity(idPlayer);
         const sId = this.getSecretId(oPlayer.location, sDirection);
         if (value) {
             oPlayer.spotted[sId] = true;
@@ -405,7 +452,7 @@ class MUDEngine {
      * @returns {{valid: boolean, difficulty: number, code: string, visible: boolean, secret: boolean, locked: boolean, key: string}}
      */
     getPlayerDoorStatus (idPlayer, sDirection) {
-        const idRoom = this.getPlayer(idPlayer).location;
+        const idRoom = this.getEntity(idPlayer).location;
         const oDoor = this.getDoor(idRoom, sDirection);
         const valid = oDoor !== undefined;
         const oStatus = {
@@ -467,43 +514,81 @@ class MUDEngine {
      * @param sSkill {string} nom du skill
      */
     getPlayerSkill (idPlayer, sSkill) {
-        const oPlayer = this.getPlayer(idPlayer);
+        const oPlayer = this.getEntity(idPlayer);
         const oSkills = oPlayer.skills;
         return sSkill in oSkills ? oSkills[sSkill] : 0;
     }
 
-    /**
-     * Renvoie la liste des identifiant des objet qui sont dans la pièce
-     * @param idRoom {string} identifiant room
-     * @return {Objects}
-     */
-    getRoomItems (idRoom) {
-        const oRoom = this.getRoom(idRoom);
-        const oList = {};
-        if ('items' in oRoom) {
-            oRoom.items.forEach((idItem, iItem) => {
-                oList['i' + iItem] = idItem
-            });
-        }
-        return oList;
-    }
-
-    getRoomEntities (idRoom) {
+    getRoomEntityStorage(idRoom) {
         const oRoom = this.getRoom(idRoom);
         if (!('entities' in oRoom)) {
             oRoom.entities = {};
+            // on a profite pour coller tous les objet par default
+            const aDefaultEntities = oRoom.defaultEntities;
+            if (aDefaultEntities) {
+                aDefaultEntities.forEach(({ blueprint, count = 1 }) => {
+                    this.createEntity(blueprint, idRoom, count);
+                });
+            }
         }
         return oRoom.entities;
     }
 
+    /**
+     * Renvoie la liste des entité présente dans la pièce spécifiée
+     * @param idRoom {string} identifiant de la pièce
+     * @param sType {string|null} un type d'objet à filter
+     * @returns {array}
+     */
+    getRoomEntities (idRoom, sType = null) {
+        const oEntities = this.getRoomEntityStorage(idRoom);
+        const aEntities = [];
+        for (let idEntity in oEntities) {
+            const lid = oEntities[idEntity];
+            const i = parseInt(lid.substr(1));
+            if (sType) {
+                const oEntity = this.getEntity(idEntity);
+                if (oEntity.type === sType) {
+                    aEntities.push({ id: idEntity, lid, i });
+                }
+            } else {
+                aEntities.push({ id: idEntity, lid, i });
+            }
+        }
+        return aEntities.sort((a, b) => a.i - b.i);
+    }
+
+    /**
+     * Ajoute une entity au registre des entités de la pièce
+     * attribu un numéro d'identification local
+     * @param idRoom {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
     addRoomEntity (idRoom, idEntity) {
-        this.getRoomEntities(idRoom)[idEntity] = true;
+        // déterminer le type d'une entité
+        const oEntity = this.getEntity(idEntity);
+        const sType = oEntity.type;
+        const sMiniType = sType.charAt(0).toLowerCase();
+        this.getRoomEntityStorage(idRoom)[idEntity] = this._localIdRegs[sMiniType].getId();
     }
 
+    /**
+     * Suprime une entity du registre des entités de la pièce
+     * @param idRoom {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
     removeRoomEntity (idRoom, idEntity) {
-        delete this.getRoomEntities(idRoom)[idEntity];
+        const lid = this.getRoomEntityStorage(idRoom)[idEntity];
+        const sMiniType = lid.charAt(0).toLowerCase();
+        this._localIdRegs[sMiniType].disposeId(lid);
+        delete this.getRoomEntityStorage(idRoom)[idEntity];
     }
 
+    /**
+     * Change la localisation d'une entité
+     * @param idRoom {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
     setEntityLocation (idEntity, idRoom) {
         if (idRoom in this._state.rooms) {
             const oEntity = this.getEntity(idEntity);
@@ -518,8 +603,13 @@ class MUDEngine {
         }
     }
 
-    getEntityLocation (idPlayer) {
-        return this.getPlayer(idPlayer).location;
+    /**
+     * Obtient la localisation d'une entité
+     * @param idEntity
+     * @returns {*}
+     */
+    getEntityLocation (idEntity) {
+        return this.getEntity(idEntity).location;
     }
 
     _mapParameters (x) {
@@ -537,20 +627,24 @@ class MUDEngine {
     notifyPlayerEvent (idPlayer, sEvent, ...params) {
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
-        const oPlayer = this.getPlayer(idPlayer);
+        const oPlayer = this.getEntity(idPlayer);
         this._events.emit('player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
     }
 
     notifyRoomEvent (idRoom, idPlayer, sEvent, ...params) {
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
-        const aPlayers = this.getPlayersInRoom(idRoom);
-        aPlayers.forEach(p => {
-            if (p !== idPlayer) {
-                const oPlayer = this.getPlayer(p);
+        const aPlayers = this.getRoomEntities(idRoom, 'player');
+        aPlayers.forEach(({ id } ) => {
+            if (id !== idPlayer) {
+                const oPlayer = this.getEntity(id);
                 this._events.emit('other-player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
             }
         })
+    }
+
+    notifyAdminEvent (sEvent, ...params) {
+        this._events.emit('admin-event', {message: util.format(sEvent, ...params)});
     }
 
     /**
@@ -630,16 +724,14 @@ class MUDEngine {
         return aOutput;
     }
 
-    renderPlayerObjectsInRoom (idPlayer) {
+    renderPlayerItemsInRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
-        const oRoom = this.getRoom(idRoom);
-        const oItems = this.getRoomItems(idRoom);
+        const aItems = this.getRoomEntities(idRoom, 'item');
         const aOutput = [];
-        for (let iItem in oItems) {
-            const idItem = oItems[iItem];
-            const { subtype, name, desc } = this._state.items[idItem];
-            aOutput.push('● [' + iItem + '] ' + name);
+        for (let { id, lid } of aItems) {
+            const { name } = this.getEntity(id);
+            aOutput.push('● [' + lid + '] ' + name);
         }
         if (aOutput.length > 0) {
             aOutput.unshift('{imp ' + this.getString('ui.visualDescObjects') + '}');
@@ -650,14 +742,14 @@ class MUDEngine {
     renderOtherPlayersInRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
-        const aOtherPlayers = this.getPlayersInRoom(idRoom).filter(idp => idp !== idPlayer);
+        const aOtherPlayers = this.getRoomEntities(idRoom, 'player').filter(({ id }) => id !== idPlayer);
         const aOutput = [];
         if (aOtherPlayers.length > 0) {
             aOutput.push('{imp ' + this.getString('ui.visualDescOtherPlayers') + '}');
-            aOtherPlayers.forEach((idp, iPlayer) => {
-                const oOtherPlayer = this.getPlayer(idp);
-                aOutput.push('● {link "look ' + idp + '" ' + oOtherPlayer.name + '}');
-            });
+            for (let { id, lid } of aOtherPlayers) {
+                const oOtherPlayer = this.getEntity(id);
+                aOutput.push('● [' + lid + '] ' + oOtherPlayer.name);
+            }
         }
         return aOutput;
     }
@@ -683,26 +775,10 @@ class MUDEngine {
         // issues
         aOutput.push(...this.renderPlayerExits(idPlayer));
         // objets contenus dans la pièce
-        aOutput.push(...this.renderPlayerObjectsInRoom(idPlayer));
+        aOutput.push(...this.renderPlayerItemsInRoom(idPlayer));
         // autres joueurs
         aOutput.push(...this.renderOtherPlayersInRoom(idPlayer));
         return aOutput;
-    }
-
-    /**
-     * Obenir la liste des joueur dans une pièce
-     * @param idRoom
-     */
-    getPlayersInRoom (idRoom) {
-        const oEntities = this.getRoomEntities(idRoom);
-        const aPlayers = [];
-        for (const id in oEntities) {
-            const oEntity = this.getEntity(id);
-            if (oEntity.type === 'player') {
-                aPlayers.push(id);
-            }
-        }
-        return aPlayers;
     }
 
     /**
@@ -711,7 +787,7 @@ class MUDEngine {
      * @param sDirection
      */
     actionPlayerPicklock (idPlayer, sDirection) {
-        const oPlayer = this.getPlayer(idPlayer);
+        const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
         const { valid, locked, dcPicklock, code } = this.getPlayerDoorStatus(idPlayer, sDirection);
         if (!valid) {

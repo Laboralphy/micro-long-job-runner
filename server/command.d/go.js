@@ -14,20 +14,19 @@ function help () {
     ];
 }
 
-function main ({ mud, print, command }, uid, sDirection) {
-    const idPlayer = mud.getPlayerId(uid);
-    const { valid, visible, locked, destination } = mud.getPlayerDoorStatus(idPlayer, sDirection);
+function main ({ mud, print, command, uid, pid }, sDirection) {
+    const { valid, visible, locked, destination } = mud.getPlayerDoorStatus(pid, sDirection);
     if (valid && visible && !locked) {
-        mud.notifyPlayerEvent(idPlayer, '$events.walk', '$directions.v' + sDirection);
-        const oPlayer = mud.getPlayer(idPlayer);
-        mud.notifyRoomEvent(oPlayer.location, idPlayer, '$events.roomPlayerLeft', oPlayer.name,'$directions.v' + sDirection);
-        mud.setEntityLocation(idPlayer, destination);
-        mud.notifyRoomEvent(oPlayer.location, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
+        mud.notifyPlayerEvent(pid, '$events.walk', '$directions.v' + sDirection);
+        const oPlayer = mud.getEntity(pid);
+        mud.notifyRoomEvent(oPlayer.location, pid, '$events.roomPlayerLeft', oPlayer.name,'$directions.v' + sDirection);
+        mud.setEntityLocation(pid, destination);
+        mud.notifyRoomEvent(oPlayer.location, pid, '$events.roomPlayerArrived', oPlayer.name);
         mud
-          .renderPlayerVisualReport(idPlayer)
+          .renderPlayerVisualReport(pid)
           .forEach(s => print(s));
     } else {
-        mud.notifyPlayerEvent(idPlayer, '$events.cannotWalk', '$directions.v' + sDirection);
+        mud.notifyPlayerEvent(pid, '$events.cannotWalk', '$directions.v' + sDirection);
     }
 }
 
