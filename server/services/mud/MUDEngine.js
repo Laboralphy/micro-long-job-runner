@@ -306,6 +306,7 @@ class MUDEngine {
             location: '', // localisation (pièce) du joueur
             sector: '', // indique le secteur dans lequel le joueur est.
             inventory: [],
+            desc: ['Description par défaut'],
             skills: {
                 spot: 5,
                 picklock: 5
@@ -314,9 +315,9 @@ class MUDEngine {
         };
         this.setEntityLocation(idPlayer, sLocation);
         const oRoom = this.getRoom(sLocation);
-        this.notifyPlayerEvent(idPlayer, '$events.youAreIn', oRoom.name);
-        this.notifyRoomEvent(sLocation, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
-        this.notifyAdminEvent('new player %s spawned at %s', oPlayer.name, oRoom.name);
+        this.notifyPlayer(idPlayer, '$events.youAreIn', oRoom.name);
+        this.notifyRoom(sLocation, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
+        this.notifyAdmin('new player %s spawned at %s', oPlayer.name, oRoom.name);
         return idPlayer;
     }
 
@@ -337,7 +338,7 @@ class MUDEngine {
             location: ''
         };
         this.setEntityLocation(idEntity, sLocation);
-        this.notifyAdminEvent('new entity %s (x%s) created at %s', oEntity.name, nCount, sLocation);
+        this.notifyAdmin('new entity %s (x%s) created at %s', oEntity.name, nCount, sLocation);
         return idEntity;
     }
 
@@ -350,7 +351,7 @@ class MUDEngine {
         if (idEntity in oEntities) {
             const oEntity = this._state.entities[idEntity];
             const idRoom = this.getEntityLocation(idEntity);
-            this.notifyRoomEvent(idRoom, idEntity, '$events.roomEntityDestroyed', oEntity.name);
+            this.notifyRoom(idRoom, idEntity, '$events.roomEntityDestroyed', oEntity.name);
             this.removeRoomEntity(idRoom, idEntity);
             delete oEntities[idEntity];
         }
@@ -612,6 +613,20 @@ class MUDEngine {
         return this.getEntity(idEntity).location;
     }
 
+
+//                       _         _                     _ _
+//   _____   _____ _ __ | |_ ___  | |__   __ _ _ __   __| | | ___ _ __ ___
+//  / _ \ \ / / _ \ '_ \| __/ __| | '_ \ / _` | '_ \ / _` | |/ _ \ '__/ __|
+// |  __/\ V /  __/ | | | |_\__ \ | | | | (_| | | | | (_| | |  __/ |  \__ \
+//  \___| \_/ \___|_| |_|\__|___/ |_| |_|\__,_|_| |_|\__,_|_|\___|_|  |___/
+
+    /**
+     * Passe en vue les chaine de caractères passées.
+     * Gestion des alias de chaînes (remplace tous les alias détecté par la vrais chaîne dans le tableau des chaînes)
+     * @param x
+     * @returns {string|*}
+     * @private
+     */
     _mapParameters (x) {
         if (Array.isArray(x)) {
             return x.map(p => this._mapParameters(p))
@@ -624,14 +639,31 @@ class MUDEngine {
         }
     }
 
-    notifyPlayerEvent (idPlayer, sEvent, ...params) {
+    /**
+     * Notification d'action au joueur.
+     * Cette fonction notifie à un joueur une action qu'il vien de faire.
+     * La notification est simplement une chaine de caractère à afficher
+     * @param idPlayer {string} identifiant joueur
+     * @param sEvent {string} chaine pleine ou bien alias de chaine. des token %s peut etre présent et seront
+     * remplacé par les paramètre suivants
+     * @param params {[]} paramètre de substitution
+     */
+    notifyPlayer (idPlayer, sEvent, ...params) {
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
         const oPlayer = this.getEntity(idPlayer);
         this._events.emit('player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
     }
 
-    notifyRoomEvent (idRoom, idPlayer, sEvent, ...params) {
+    /**
+     * Comme notify player, mais pour tous les autres joueurs de la pièce
+     * @param idRoom {string} identifiant pièce
+     * @param idPlayer {string} identifiant joueur
+     * @param sEvent {string} chaine pleine ou bien alias de chaine. des token %s peut etre présent et seront
+     * remplacé par les paramètre suivants
+     * @param params {[]} paramètre de substitution
+     */
+    notifyRoom (idRoom, idPlayer, sEvent, ...params) {
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
         const aPlayers = this.getRoomEntities(idRoom, 'player');
@@ -643,9 +675,21 @@ class MUDEngine {
         })
     }
 
-    notifyAdminEvent (sEvent, ...params) {
+    /**
+     * Notification d'évènement aux admins. fonctionne comme notifyPlayer
+     * @param sEvent
+     * @param params
+     */
+    notifyAdmin (sEvent, ...params) {
         this._events.emit('admin-event', {message: util.format(sEvent, ...params)});
     }
+
+//                      _                 _        _
+//   _ __ ___ _ __   __| | ___ _ __   ___| |_ _ __(_)_ __   __ _ ___
+//  | '__/ _ \ '_ \ / _` |/ _ \ '__| / __| __| '__| | '_ \ / _` / __|
+//  | | |  __/ | | | (_| |  __/ |    \__ \ |_| |  | | | | | (_| \__ \
+//  |_|  \___|_| |_|\__,_|\___|_|    |___/\__|_|  |_|_| |_|\__, |___/
+//                                                         |___/
 
     /**
      * Produit une chaine affichage pour rendre compte de l'état d'une des issues d'une pièces
@@ -685,6 +729,7 @@ class MUDEngine {
     /**
      * Affiche une description du secteur actuellement occupé par le joueur
      * @param idPlayer
+     * @return {string[]}
      */
     renderPlayerSector (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
@@ -698,6 +743,11 @@ class MUDEngine {
         return aOutput;
     }
 
+    /**
+     * Affiche une description de la pièce actuellement occupée par le joueur
+     * @param idPlayer {string} identifiant joueur
+     * @returns {string[]}
+     */
     renderPlayerRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
@@ -708,6 +758,11 @@ class MUDEngine {
         return aOutput;
     }
 
+    /**
+     * Affichage des sortie disponible dan sla pièce ou se trouve
+     * @param idPlayer
+     * @returns {[]}
+     */
     renderPlayerExits (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
@@ -724,6 +779,11 @@ class MUDEngine {
         return aOutput;
     }
 
+    /**
+     * Affiche la liste des items présetn dans la pièce ou se trouve le joueur
+     * @param idPlayer {string}
+     * @returns {string[]}
+     */
     renderPlayerItemsInRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
@@ -739,6 +799,11 @@ class MUDEngine {
         return aOutput;
     }
 
+    /**
+     * Affiche la liste des autres joueur présent la pièce
+     * @param idPlayer {string} identifiant joueur
+     * @returns {string[]}
+     */
     renderOtherPlayersInRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
@@ -755,6 +820,8 @@ class MUDEngine {
     }
 
     /**
+     * Affichage de la situation visuelle du joueur.
+     * info sur la pièce, les sortie, les objets ...
      * produit un tableau de chaine décrivant la situation visuelle actuelle du joueur
      * @param idPlayer {string} identifiant joueur
      * @returns {string[]}
@@ -791,25 +858,25 @@ class MUDEngine {
         const idRoom = oPlayer.location;
         const { valid, locked, dcPicklock, code } = this.getPlayerDoorStatus(idPlayer, sDirection);
         if (!valid) {
-            this.notifyPlayerEvent(idPlayer, '$events.doorInvalid');
+            this.notifyPlayer(idPlayer, '$events.doorInvalid');
             return
         }
         if (code) {
-            this.notifyPlayerEvent(idPlayer, '$events.doorHasCode');
+            this.notifyPlayer(idPlayer, '$events.doorHasCode');
             return;
         }
         if (!locked) {
-            this.notifyPlayerEvent(idPlayer, '$events.doorNotLocked');
+            this.notifyPlayer(idPlayer, '$events.doorNotLocked');
             return;
         }
         const nSkill = this.getPlayerSkill(idPlayer, 'picklock');
         if (nSkill >= dcPicklock) {
-            this.notifyPlayerEvent(idPlayer, '$events.picklockSuccess');
-            this.notifyRoomEvent(idRoom, idPlayer, '$events.roomPicklockSuccess', oPlayer.name, '$directions.v' + sDirection);
+            this.notifyPlayer(idPlayer, '$events.picklockSuccess');
+            this.notifyRoom(idRoom, idPlayer, '$events.roomPicklockSuccess', oPlayer.name, '$directions.v' + sDirection);
             this.setDoorLocked(idRoom, sDirection, false);
         } else {
-            this.notifyPlayerEvent(idPlayer, '$events.picklockFailed');
-            this.notifyRoomEvent(idRoom, idPlayer, '$events.roomPicklockFailed', oPlayer.name, '$directions.v' + sDirection);
+            this.notifyPlayer(idPlayer, '$events.picklockFailed');
+            this.notifyRoom(idRoom, idPlayer, '$events.roomPicklockFailed', oPlayer.name, '$directions.v' + sDirection);
         }
     }
 
@@ -821,14 +888,14 @@ class MUDEngine {
         const nSkill = this.getPlayerSkill(idPlayer, 'spot');
         const { valid, secret, visible, dcSearch } = this.getPlayerDoorStatus(idPlayer, sDirection);
         if (!valid) {
-            this.notifyPlayerEvent(idPlayer, '$events.doorSearchFailed');
+            this.notifyPlayer(idPlayer, '$events.doorSearchFailed');
         }
         if (visible) {
-            this.notifyPlayerEvent(idPlayer, '$events.doorSearchElsewhere');
+            this.notifyPlayer(idPlayer, '$events.doorSearchElsewhere');
         }
         if (secret && nSkill >= dcSearch) {
             this.setPlayerDoorSpotted(idPlayer, sDirection, true);
-            this.notifyPlayerEvent(idPlayer, '$events.doorSearchSuccess');
+            this.notifyPlayer(idPlayer, '$events.doorSearchSuccess');
         }
     }
 }

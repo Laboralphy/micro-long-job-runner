@@ -32,16 +32,27 @@ class ServiceMUD extends ServiceAbstract {
         const uid = client.id;
         const pid = this._mud.getPlayerId(uid);
 
+        const print = message => this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: message });
+        const quit = () => socket.disconnect();
+        const help = sPage => this
+          ._scriptorium
+          .displayHelp(sPage)
+          .forEach(({ section, text }) => {
+              print('{imp ' + section + '}');
+              if (Array.isArray(text)) {
+                  text.forEach(print);
+                  print('');
+              } else {
+                  print(text);
+                  print('');
+              }
+          });
+
         const context = {
-            print: message => this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: message }),
-            quit: () => socket.disconnect(),
+            print,
+            quit,
             uid,
-            help: sPage => this
-              ._scriptorium
-              .displayHelp(sPage)
-              .forEach(p => {
-                  this.socketEmit(uid, 'TERM_PRINT', { screen: null, content: p });
-              }),
+            help,
             mud: this._mud,
             pid
         };
