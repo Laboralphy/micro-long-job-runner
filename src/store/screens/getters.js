@@ -1,8 +1,2 @@
-export const getActiveScreen = state => {
-    const x = state.screens.find(s => s.id === state.activeScreen);
-    if (x === undefined) {
-        console.log(JSON.parse(JSON.stringify(state)))
-    }
-    return x;
-}
+export const getActiveScreen = state => state.screens.find(s => s.id === state.activeScreen);
 export const getScreens = state => state.screens;

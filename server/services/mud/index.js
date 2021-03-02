@@ -34,19 +34,23 @@ class ServiceMUD extends ServiceAbstract {
 
         const print = message => this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: message });
         const quit = () => socket.disconnect();
-        const help = sPage => this
-          ._scriptorium
-          .displayHelp(sPage)
-          .forEach(({ section, text }) => {
-              print('{imp ' + section + '}');
-              if (Array.isArray(text)) {
-                  text.forEach(print);
-                  print('');
-              } else {
-                  print(text);
-                  print('');
-              }
-          });
+        const help = sCommand => {
+            const h = this._scriptorium.displayHelp(sCommand);
+            if (h) {
+                h.forEach(({ section, text }) => {
+                    print('{imp ' + section + '}');
+                    if (Array.isArray(text)) {
+                        text.forEach(print);
+                        print('');
+                    } else {
+                        print(text);
+                        print('');
+                    }
+                });
+            } else {
+                print('Unknown command : ' + sCommand);
+            }
+        }
 
         const context = {
             print,
@@ -69,7 +73,7 @@ class ServiceMUD extends ServiceAbstract {
                           this.getClient(uid).socket.disconnect();
                       });
                 } else {
-                    this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: 'Commande inconnue : ' + sScript });
+                    print('{neg Unknown command : ' + sScript + '}');
                 }
             }
         });

@@ -2,6 +2,8 @@ const util = require('util');
 const Events = require('events');
 const DiscardableRegistry = require('../../../libs/discardable-registry');
 
+const STATE = require('./w3000.json');
+
 class KeyNotFoundError extends Error {
     constructor(sKey, sCollection) {
         super('Key "' + sKey + '" could not be found in collection "' + sCollection + '"');
@@ -26,241 +28,8 @@ class MUDEngine {
     constructor() {
         this._events = new Events();
         this._lastId = 0;
-        this._localIdRegs = {
-            i: new DiscardableRegistry('i'), // les objets d'inventaire
-            p: new DiscardableRegistry('p'), // les joueurs
-            o: new DiscardableRegistry('o'), // les objets placables
-            c: new DiscardableRegistry('c')  // les créature et pnj
-        };
-        this._state = {
-            "strings": {
-                "directions": {
-                    "n": "nord",
-                    "e": "est",
-                    'w': "ouest",
-                    "s": "sud",
-                    "ne": "nord-est",
-                    "nw": "nord-ouest",
-                    "se": "sud-est",
-                    "sw": "sud-ouest",
-                    "an": "au nord",
-                    "ae": "à l'est",
-                    'aw': "à l'ouest",
-                    "as": "au sud",
-                    "ane": "au nord-est",
-                    "anw": "au nord-ouest",
-                    "ase": "au sud-est",
-                    "asw": "au sud-ouest",
-                    "vn": "vers le nord",
-                    "ve": "vers l'est",
-                    'vw': "vers l'ouest",
-                    "vs": "vers le sud",
-                    "vne": "vers le nord-est",
-                    "vnw": "vers le nord-ouest",
-                    "vse": "vers le sud-est",
-                    "vsw": "vers le sud-ouest",
-                },
-                "events": {
-                    "youAreIn": "Vous voici dans : %s.",
-                    "lookAround": "Vous regardez autour de vous.",
-                    "lookEntity": "Vous examinez %s.",
-                    "walk": "Vous allez %s.",
-                    "cannotWalk": "Vous ne pouvez pas aller %s.",
-                    "picklockSuccess": "Vous réussissez à crocheter la serrure.",
-                    "picklockFailed": "Vous ne parvenez pas à crocheter la serrure.",
-                    "doorNotLocked": "Il n'y a pas de serrure sur cette porte.",
-                    "doorHasCode": "Cette porte est verrouillée par un code secret.",
-                    "doorInvalid": "Il n'y a pas de porte par ici.",
-                    "doorSearchSuccess": "Vous découvrez une porte secrete.",
-                    "doorSearchFailed": "Vous ne découvrez rien de caché.",
-                    "doorSearchElsewhere": "Cherchez ailleurs, il y a déjà une issue visible ici.",
-                    "roomPlayerArrived": "%s vient d'arriver dans la zone.",
-                    "roomPlayerLeft": "%s s'éloigne %s.",
-                    "roomPicklockSuccess": "%s vient de crocheter une serrure sur la porte située %s.",
-                    "roomPicklockFailed": "%s ne parvient pas à crocheter une serrure sur la porte située %s.",
-                    "roomEntityCreated": "%s vient d'apparaitre !",
-                    "roomEntityDestroyed": "%s vient de disparaître !"
-                },
-                "nav": {
-                    "doorLocked": "verrouillée",
-                    "doorUnlockable": "vous avez la clé",
-                    "doorCode": "par code secret",
-                    "doorKey": "nécessite: %s",
-                    "doorLockable": "déverrouillée"
-                },
-                "errors": {
-                    "invalidPlayerName": "Ce nom est invalide. Un nom doit comporter entre 2 et 20 caractères sans espace."
-                },
-                "ui": {
-                    "visualDescExits": "Issues",
-                    "visualDescObjects": "Objets",
-                    "visualDescCreatures": "Personnages",
-                    "visualDescNoObject": "Aucun objet visible.",
-                    "visualDescNoCreature": "Aucun personnage visible.",
-                    "visualDescOtherPlayers": "Joueurs",
-                    "descFieldName": "Nom",
-                    "descFieldType": "Type",
-                    "descFieldWeight": "Poids"
-                }
-            },
-            "entities": {},
-            "data": {},
-            "blueprints": {
-                "blueprint::k3011": {
-                    "type": "item",
-                    "subtype": "key",
-                    "name": "Clé du bureau 3011",
-                    "desc": [
-                        "Une petite clé plate sur laquelle est inscrit le nombre 3011"
-                    ],
-                    "weight": 0.1
-                }
-            },
-            "sectors": {
-                "sector::0001": {
-                    "name": "Premier secteur",
-                    "desc": [
-                      "Cet ensemble de couloirs et bureaux constitue le premier secteur jamais construit sur ce MUD.",
-                      "C'est pourquoi il semble si ennuyeux à explorer"
-                    ]
-                }
-            },
-            "rooms": {
-                "room::b3009": {
-                    "name": "Bureau 3009",
-                    "sector": "sector::0001",
-                    "desc": [
-                        "Le bureau 3009 contient quelques mobiliers de travail espacés les uns aux autres.",
-                        "De nombreux écrans sont posés sur les meubles."
-                    ],
-                    "nav": {
-                        "e": {
-                            "to": "room::c3000b",
-                            "desc": "Une porte donnant sur le couloir"
-                        }
-                    },
-                    "defaultEntities": [
-                        {
-                            "blueprint": "blueprint::k3011"
-                        }
-                    ]
-                },
-                "room::b3010": {
-                    "name": "Bureau 3010",
-                    "sector": "sector::0001",
-                    "desc": [
-                        "Le bureau 3010 contient plusieurs mobiliers de travail collés les uns aux autres.",
-                        "De nombreux écrans sont posés sur les meubles. Un poster de Misa est accroché au mur.",
-                        "On voit une table sur laquelle est posée une machine à café"
-                    ],
-                    "nav": {
-                        "e": {
-                            "to": "room::c3000c",
-                            "desc": "Une porte donnant sur le couloir"
-                        }
-                    }
-                },
-                "room::b3011": {
-                    "name": "Bureau 3011",
-                    "sector": "sector::0001",
-                    "desc": [
-                        "Le bureau 3011 est une petite pièce ne contenant qu'une seule table de travail."
-                    ],
-                    "nav": {
-                        "e": {
-                            "to": "room::c3000d",
-                            "desc": "Une porte donnant sur le couloir"
-                        }
-                    }
-                },
-                "room::c3000b": {
-                    "name": "Couloir 3000 nord",
-                    "sector": "sector::0001",
-                    "desc": [
-                        "Le couloir est faiblement éclairé par une seule lampe située au sud, et une porte s'ouvre sur le mur est.",
-                        "Au nord le couloir plonge dans l'obscurité, il n'est pas necessaire d'y aller."
-                    ],
-                    "nav": {
-                        "s": {
-                            "to": "room::c3000c",
-                            "desc": "Le couloir continue vers le sud"
-                        },
-                        "w": {
-                            "to": "room::b3009",
-                            "desc": "Une porte menant au bureau 3009"
-                        },
-                        "se": {
-                            "secret": {
-                                "difficulty": 1
-                            },
-                            "desc": "Une porte encastrée dans le mur Est au Sud de votre position.",
-                            "to": "room::t3000b"
-                        }
-                    }
-                },
-                "room::t3000b": {
-                    "name": "Les toilettes",
-                    "sector": "sector::0001",
-                    "desc": [
-                        "Des toilettes !"
-                    ],
-                    "nav": {
-                        "nw": {
-                            "desc": "Une issue qui retourne dans le couloir.",
-                            "to": "room::c3000b"
-                        }
-                    }
-                },
-                "room::c3000c": {
-                    "name": "Couloir 3000 centre",
-                    "sector": "sector::0001",
-                    "desc": [
-                      "Le couloir est éclairé par la seule lampe que vous pouvez voir, cette lampe est fixée au plafont précisément en face d'une porte s'ouvrant sur le mur est."
-                    ],
-                    "nav": {
-                        "n": {
-                            "to": "room::c3000b",
-                            "desc": "Le couloir poursuit au nord."
-                        },
-                        "s": {
-                            "to": "room::c3000d",
-                            "desc": "Le couloir poursuit au sud"
-                        },
-                        "w": {
-                            "to": "room::b3010",
-                            "desc": "Une porte menant au bureau 3010",
-                            "lock": {
-                                "code": "1234",
-                                "locked": true
-                            }
-                        }
-                    }
-                },
-                "room::c3000d": {
-                    "name": "Couloir 3000 sud",
-                    "sector": "sector::0001",
-                    "desc": [
-                        "Le couloir est faiblement éclairé par une seule lampe située au nord, et une porte s'ouvre sur le mur est.",
-                        "Au sud le couloir plonge dans l'obscurité et on ne distingue absolument rien au delà de quelques mètres."
-                    ],
-                    "nav": {
-                        "n": {
-                            "to": "room::c3000c",
-                            "desc": "Le couloir continue vers le nord"
-                        },
-                        "w": {
-                            "to": "room::b3011",
-                            "desc": "Une porte menant au bureau 3011",
-                            "lock": {
-                                "difficulty": 3,
-                                "key": "item::k3011",
-                                "locked": true
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        this._localIdRegistry = {};
+        this._state = STATE;
     }
 
     /**
@@ -275,7 +44,7 @@ class MUDEngine {
             const sString = sPath.split('.').reduce((prev, curr) => prev[curr], this._state.strings).substr(0);
             return util.format(sString, ...params);
         } catch (e) {
-            throw new KeyNotFoundError(sPath, 'strings');
+            return util.format(sPath, ...params)
         }
     }
 
@@ -291,6 +60,7 @@ class MUDEngine {
      * Création d'un nouveau personnage joueur
      * @param id {string} identifiant externe (désigné par l'appli cliente) qui sera transformé en identifiant internet au mud
      * @param sName
+     * @param sLocation {string} identifiant de la pièce ou sera localisé l'entité
      * @returns {string|null}
      */
     createNewPlayer(id, sName, sLocation) {
@@ -302,43 +72,99 @@ class MUDEngine {
         const oPlayer = this._state.entities[idPlayer] = {
             type: 'player',
             id,
+            blueprint: {
+                type: 'player',
+                desc: ['Description par défaut']
+            },
             name: sName,
             location: '', // localisation (pièce) du joueur
             sector: '', // indique le secteur dans lequel le joueur est.
             inventory: [],
-            desc: ['Description par défaut'],
             skills: {
                 spot: 5,
                 picklock: 5
             },
             spotted: {}
         };
+        this._localIdRegistry[idPlayer] = {
+            inv: new DiscardableRegistry()
+        };
         this.setEntityLocation(idPlayer, sLocation);
         const oRoom = this.getRoom(sLocation);
-        this.notifyPlayer(idPlayer, '$events.youAreIn', oRoom.name);
-        this.notifyRoom(sLocation, idPlayer, '$events.roomPlayerArrived', oPlayer.name);
+        this.notifyPlayer(idPlayer, 'events.youAreIn', oRoom.name);
+        this.notifyRoom(sLocation, idPlayer, 'events.roomPlayerArrived', oPlayer.name);
         this.notifyAdmin('new player %s spawned at %s', oPlayer.name, oRoom.name);
         return idPlayer;
     }
 
-    getEntityBlueprint (idEntity) {
-        return this.getEntity(idEntity).blueprint;
+    cloneEntity (oEntity) {
+        ++this._lastId;
+        const idEntity = 'entity::' + this._lastId;
+        const oBlueprint = oEntity.blueprint;
+        const oClone = this._state.entities[idEntity] = {
+            id: idEntity,
+            blueprint: oBlueprint,
+            tag: oBlueprint.tag,
+            count: oEntity.stack,
+            location: '',
+            buc: oEntity.buc,
+            identified: oEntity.identified,
+            inventory: oBlueprint.inventory ? [] : null, // l'inventaire ne peut pas être dupliqué
+            get name () {
+                const b = this.blueprint;
+                const sStack = b.stackable ? ' x' + this.stack : '';
+                return (this.identified ? b.name : b.uname) + sStack;
+            },
+            get desc () {
+                const b = this.blueprint;
+                return this.identified ? b.name : b.udesc;
+            }
+        };
+        if (oBlueprint.inventory) {
+            this._localIdRegistry[idEntity] = {
+                inv: new DiscardableRegistry()
+            };
+        }
+        this.notifyAdmin('clone entity %s', oClone.name);
+        return idEntity;
     }
 
     createEntity (sBlueprint, sLocation, nCount = 1) {
         ++this._lastId;
         const idEntity = 'entity::' + this._lastId;
         const oBlueprint = this.getBlueprint(sBlueprint);
+        if (!Object.isFrozen(oBlueprint)) {
+            oBlueprint.ref = sBlueprint;
+            Object.freeze(oBlueprint);
+        }
         const oEntity = this._state.entities[idEntity] = {
+            id: idEntity,
             blueprint: oBlueprint,
-            name: oBlueprint.name,
-            type: oBlueprint.type,
-            subtype: oBlueprint.subtype,
+            tag: oBlueprint.tag,
             count: nCount,
-            location: ''
+            location: '',
+            buc: 'u',
+            identified: true,
+            inventory: oBlueprint.inventory ? [] : null,
+            get name () {
+                const b = this.blueprint;
+                const sStack = b.stackable ? ' x' + this.stack : '';
+                return (this.identified ? b.name : b.uname) + sStack;
+            },
+            get desc () {
+                const b = this.blueprint;
+                return this.identified ? b.name : b.udesc;
+            }
         };
-        this.setEntityLocation(idEntity, sLocation);
-        this.notifyAdmin('new entity %s (x%s) created at %s', oEntity.name, nCount, sLocation);
+        if (oBlueprint.inventory) {
+            this._localIdRegistry[idEntity] = {
+                inv: new DiscardableRegistry()
+            };
+        }
+        if (sLocation) {
+            this.setEntityLocation(idEntity, sLocation);
+        }
+        this.notifyAdmin('new entity %s created at %s', oEntity.name, sLocation === '' ? 'limbo' : sLocation);
         return idEntity;
     }
 
@@ -350,9 +176,13 @@ class MUDEngine {
         const oEntities = this._state.entities;
         if (idEntity in oEntities) {
             const oEntity = this._state.entities[idEntity];
-            const idRoom = this.getEntityLocation(idEntity);
-            this.notifyRoom(idRoom, idEntity, '$events.roomEntityDestroyed', oEntity.name);
+            const idRoom = this.getEntity(idEntity).location;
+            this.notifyAdmin('entity %s has been destroy at %s', oEntity.name, idRoom);
+            this.notifyRoom(idRoom, idEntity, 'events.roomEntityDestroyed', oEntity.name);
             this.removeRoomEntity(idRoom, idEntity);
+            if (idEntity in this._localIdRegistry) {
+                delete this._localIdRegistry[idEntity];
+            }
             delete oEntities[idEntity];
         }
     }
@@ -365,6 +195,11 @@ class MUDEngine {
         }
     }
 
+    isEntity (idEntity) {
+        const oEntity = this._state.entities;
+        return idEntity in oEntity;
+    }
+
     getEntity (idEntity) {
         const oEntity = this._state.entities;
         if (idEntity in oEntity) {
@@ -374,11 +209,18 @@ class MUDEngine {
         }
     }
 
+    /**
+     * A partir du local_id Recherche une entity dans la pièce spécifiée.
+     * Le local_id est un identifiant simplifié propre à chaque pièce.
+     * @param idRoom {string} identifiant pièce
+     * @param lid {string} identifiant local de l'objet recherché
+     * @returns {null|*}
+     */
     getRoomLocalEntity (idRoom, lid) {
         const oFoundEntity = this
             .getRoomEntities(idRoom)
             .find(e => e.lid === lid);
-        if (oFoundEntity && this.getEntityLocation(oFoundEntity.id)) {
+        if (oFoundEntity && this.getEntity(oFoundEntity.id).location) {
             return this.getEntity(oFoundEntity.id);
         } else {
             return null;
@@ -395,6 +237,188 @@ class MUDEngine {
     }
 
     /**
+     * Détermine la value d'un skill d'un joueur
+     * @param idPlayer {string} identifiant joueur
+     * @param sSkill {string} nom du skill
+     */
+    getPlayerSkill (idPlayer, sSkill) {
+        const oPlayer = this.getEntity(idPlayer);
+        const oSkills = oPlayer.skills;
+        return sSkill in oSkills ? oSkills[sSkill] : 0;
+    }
+
+    getRoomEntityStorage(idRoom) {
+        const oRoom = this.getRoom(idRoom);
+        if (!(idRoom) in this._localIdRegistry) {
+            this._localIdRegistry[idRoom] = {
+                i: new DiscardableRegistry('i'), // les objets d'inventaire
+                p: new DiscardableRegistry('p'), // les joueurs
+                o: new DiscardableRegistry('o'), // les objets placables
+                c: new DiscardableRegistry('c')  // les créatures et les pnj
+            };
+        }
+        if (!('entities' in oRoom)) {
+            // construction du registre d'identifiant locaux
+            // construction du stockage des entités
+            oRoom.entities = {};
+            // on a profite pour coller tous les objet par default
+            const aDefaultEntities = oRoom.defaultEntities;
+            if (aDefaultEntities) {
+                aDefaultEntities.forEach(({ blueprint, count = 1 }) => {
+                    this.createEntity(blueprint, idRoom, count);
+                });
+            }
+        }
+        return oRoom.entities;
+    }
+
+    /**
+     * Renvoie la liste des entité présente dans la pièce spécifiée
+     * @param idRoom {string} identifiant de la pièce
+     * @param sType {string|null} un type d'objet à filter
+     * @returns {array}
+     */
+    getRoomEntities (idRoom, sType = null) {
+        const oEntities = this.getRoomEntityStorage(idRoom);
+        const aEntities = [];
+        for (let idEntity in oEntities) {
+            const lid = oEntities[idEntity];
+            const i = parseInt(lid.substr(1));
+            if (sType) {
+                const oEntity = this.getEntity(idEntity);
+                if (oEntity.blueprint.type === sType) {
+                    aEntities.push({ id: idEntity, lid, i });
+                }
+            } else {
+                aEntities.push({ id: idEntity, lid, i });
+            }
+        }
+        return aEntities.sort((a, b) => a.i - b.i);
+    }
+
+    /**
+     * Ajoute une entity au registre des entités de la pièce
+     * attribu un numéro d'identification local
+     * @param idRoom {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
+    addRoomEntity (idRoom, idEntity) {
+        // déterminer le type d'une entité
+        const oEntity = this.getEntity(idEntity);
+        const sType = oEntity.blueprint.type;
+        const sMiniType = sType.charAt(0).toLowerCase();
+        this.getRoomEntityStorage(idRoom)[idEntity] = this._localIdRegistry[idRoom][sMiniType].getId();
+    }
+
+    /**
+     * Suprime une entity du registre des entités de la pièce
+     * @param idRoom {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
+    removeRoomEntity (idRoom, idEntity) {
+        const lid = this.getRoomEntityStorage(idRoom)[idEntity];
+        const sMiniType = lid.charAt(0).toLowerCase();
+        this._localIdRegistry[idRoom][sMiniType].disposeId(lid);
+        delete this.getRoomEntityStorage(idRoom)[idEntity];
+        const oEntity = this.getEntity(idEntity);
+        oEntity.location = '';
+    }
+
+    /**
+     * Change la localisation d'une entité
+     * @param idTo {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
+    setEntityLocation (idEntity, idTo) {
+        if (idTo in this._state.rooms) {
+            const oEntity = this.getEntity(idEntity);
+            const idPrevRoom = oEntity.location;
+            oEntity.location = idTo;
+            if (idPrevRoom in this._state.rooms) {
+                this.removeRoomEntity(idPrevRoom, idEntity);
+            }
+            this.addRoomEntity(idTo, idEntity);
+        } else {
+            throw new KeyNotFoundError(idTo, 'rooms');
+        }
+    }
+
+    /**
+     * Ajoute un objet dans l'inventaire de l'entity
+     * @param idItem {string} identifiant de l'objet à ramasser
+     * @param idEntity {string} identifiant de la creature
+     */
+    addInventoryItem (idEntity, idItem) {
+        const oEntity = this.getEntity(idEntity);
+        const oItem = this.getEntity(idItem);
+        if (oEntity.inventory) {
+            // l'entité bénéficiaire a bienun inventaire
+            const oInventory = oEntity.inventory;
+            if (oItem.blueprint.stackable) {
+                // l'item qu'on veut déposer est stackable
+                // recherche une éventuelle pile d'objet du meme blueprint
+                const oPile = oInventory.find(oInvEntry => {
+                    const oOtherItem = oInvEntry.item;
+                    return oOtherItem.blueprint.ref === oItem.blueprint.ref &&
+                        oOtherItem.buc === oItem.buc &&
+                        oOtherItem.identified === oItem.identified &&
+                        oOtherItem.tag === oItem.tag;
+                });
+                if (oPile) {
+                    // additionner les piles
+                    oPile.item.stack += oItem.stack;
+                    this.destroyEntity(idItem);
+                    return;
+                }
+            }
+            // obtenir local id
+            const lid = this._localIdRegistry[idEntity].inv.getId();
+            oInventory.push({
+                lid,
+                item: oItem
+            });
+            this.removeRoomEntity(oItem.location, oItem);
+        }
+    }
+
+    removeInventoryItem (idEntity, idItem, count) {
+        const oEntity = this.getEntity(idEntity);
+        const oItem = this.getEntity(idItem);
+        if (oEntity.inventory) {
+            const oInventory = oEntity.inventory;
+            // chercher si l'item est bien dans l'inventaire
+            const iItem = oInventory.findIndex(({ item }) => item === oItem);
+            if (iItem >= 0) {
+                // est ce un objet empilable ?
+                if (oItem.blueprint.stackable && count < oItem.stack) {
+                    // réduire la pile
+                    // créer un nouvel objet
+                    const idClone = this.cloneEntity(oItem);
+                    const oClone = this.getEntity(idClone);
+                    // ajuster les stack
+                    oClone.stack = count;
+                    oItem.stack -= count;
+                    return oClone;
+                } else {
+                    // l'item n'est pas stackable... c'est plus simple
+                    // ou bien il est stackable mais on enleve toute la pile
+                    oInventory.splice(iItem, 1);
+                    return oItem;
+                }
+            }
+        }
+    }
+
+
+//  ____                                         _   _  __
+// |  _ \  ___   ___  _ __ ___    __ _ _ __   __| | | |/ /___ _   _ ___
+// | | | |/ _ \ / _ \| '__/ __|  / _` | '_ \ / _` | | ' // _ \ | | / __|
+// | |_| | (_) | (_) | |  \__ \ | (_| | | | | (_| | | . \  __/ |_| \__ \
+// |____/ \___/ \___/|_|  |___/  \__,_|_| |_|\__,_| |_|\_\___|\__, |___/
+//                                                            |___/
+
+
+    /**
      * Renvoie le code technique d'une issue secrete
      * @param idRoom {string} identifiant dans la pièce ou se trouve l'issue
      * @param sDirection {string} direction
@@ -403,13 +427,6 @@ class MUDEngine {
     getSecretId (idRoom, sDirection) {
         return idRoom + '::' + sDirection;
     }
-
-//  ____                                         _   _  __
-// |  _ \  ___   ___  _ __ ___    __ _ _ __   __| | | |/ /___ _   _ ___
-// | | | |/ _ \ / _ \| '__/ __|  / _` | '_ \ / _` | | ' // _ \ | | / __|
-// | |_| | (_) | (_) | |  \__ \ | (_| | | | | (_| | | . \  __/ |_| \__ \
-// |____/ \___/ \___/|_|  |___/  \__,_|_| |_|\__,_| |_|\_\___|\__, |___/
-//                                                            |___/
 
     getDoor (idRoom, sDirection) {
         const oRoom = this.getRoom(idRoom);
@@ -509,111 +526,6 @@ class MUDEngine {
         }
     }
 
-    /**
-     * Détermine la value d'un skill d'un joueur
-     * @param idPlayer {string} identifiant joueur
-     * @param sSkill {string} nom du skill
-     */
-    getPlayerSkill (idPlayer, sSkill) {
-        const oPlayer = this.getEntity(idPlayer);
-        const oSkills = oPlayer.skills;
-        return sSkill in oSkills ? oSkills[sSkill] : 0;
-    }
-
-    getRoomEntityStorage(idRoom) {
-        const oRoom = this.getRoom(idRoom);
-        if (!('entities' in oRoom)) {
-            oRoom.entities = {};
-            // on a profite pour coller tous les objet par default
-            const aDefaultEntities = oRoom.defaultEntities;
-            if (aDefaultEntities) {
-                aDefaultEntities.forEach(({ blueprint, count = 1 }) => {
-                    this.createEntity(blueprint, idRoom, count);
-                });
-            }
-        }
-        return oRoom.entities;
-    }
-
-    /**
-     * Renvoie la liste des entité présente dans la pièce spécifiée
-     * @param idRoom {string} identifiant de la pièce
-     * @param sType {string|null} un type d'objet à filter
-     * @returns {array}
-     */
-    getRoomEntities (idRoom, sType = null) {
-        const oEntities = this.getRoomEntityStorage(idRoom);
-        const aEntities = [];
-        for (let idEntity in oEntities) {
-            const lid = oEntities[idEntity];
-            const i = parseInt(lid.substr(1));
-            if (sType) {
-                const oEntity = this.getEntity(idEntity);
-                if (oEntity.type === sType) {
-                    aEntities.push({ id: idEntity, lid, i });
-                }
-            } else {
-                aEntities.push({ id: idEntity, lid, i });
-            }
-        }
-        return aEntities.sort((a, b) => a.i - b.i);
-    }
-
-    /**
-     * Ajoute une entity au registre des entités de la pièce
-     * attribu un numéro d'identification local
-     * @param idRoom {string} identifiant pièce
-     * @param idEntity {string} identifiant entité
-     */
-    addRoomEntity (idRoom, idEntity) {
-        // déterminer le type d'une entité
-        const oEntity = this.getEntity(idEntity);
-        const sType = oEntity.type;
-        const sMiniType = sType.charAt(0).toLowerCase();
-        this.getRoomEntityStorage(idRoom)[idEntity] = this._localIdRegs[sMiniType].getId();
-    }
-
-    /**
-     * Suprime une entity du registre des entités de la pièce
-     * @param idRoom {string} identifiant pièce
-     * @param idEntity {string} identifiant entité
-     */
-    removeRoomEntity (idRoom, idEntity) {
-        const lid = this.getRoomEntityStorage(idRoom)[idEntity];
-        const sMiniType = lid.charAt(0).toLowerCase();
-        this._localIdRegs[sMiniType].disposeId(lid);
-        delete this.getRoomEntityStorage(idRoom)[idEntity];
-    }
-
-    /**
-     * Change la localisation d'une entité
-     * @param idRoom {string} identifiant pièce
-     * @param idEntity {string} identifiant entité
-     */
-    setEntityLocation (idEntity, idRoom) {
-        if (idRoom in this._state.rooms) {
-            const oEntity = this.getEntity(idEntity);
-            const idPrevRoom = oEntity.location;
-            oEntity.location = idRoom;
-            if (idPrevRoom in this._state.rooms) {
-                this.removeRoomEntity(idPrevRoom, idEntity);
-            }
-            this.addRoomEntity(idRoom, idEntity);
-        } else {
-            throw new KeyNotFoundError(idRoom, 'rooms');
-        }
-    }
-
-    /**
-     * Obtient la localisation d'une entité
-     * @param idEntity
-     * @returns {*}
-     */
-    getEntityLocation (idEntity) {
-        return this.getEntity(idEntity).location;
-    }
-
-
 //                       _         _                     _ _
 //   _____   _____ _ __ | |_ ___  | |__   __ _ _ __   __| | | ___ _ __ ___
 //  / _ \ \ / / _ \ '_ \| __/ __| | '_ \ / _` | '_ \ / _` | |/ _ \ '__/ __|
@@ -631,11 +543,7 @@ class MUDEngine {
         if (Array.isArray(x)) {
             return x.map(p => this._mapParameters(p))
         } else {
-            if (x.startsWith('$')) {
-                return this.getString(x.substr(1));
-            } else {
-                return x;
-            }
+            return this.getString(x);
         }
     }
 
@@ -701,7 +609,7 @@ class MUDEngine {
         const sDirStr = this.getString('directions.v' + sDirection);
         const oDoor = this.getDoor(idRoom, sDirection);
         const a = [
-            '● [' + sDirection + ']',
+            ' - [' + sDirection + ']',
             sDirStr.charAt(0).toUpperCase() + sDirStr.substr(1),
             ':',
             oDoor.desc
@@ -711,7 +619,7 @@ class MUDEngine {
             b.push(this.getString('nav.doorLocked'));
             const sKey = oDoorStatus.key;
             if (sKey) {
-                b.push(this.getString('nav.doorKey', this._state.items[sKey].name));
+                b.push(this.getString('nav.doorKey', this._state.blueprints[sKey].name));
             }
             const sCode = oDoorStatus.code;
             if (sCode !== '') {
@@ -791,7 +699,7 @@ class MUDEngine {
         const aOutput = [];
         for (let { id, lid } of aItems) {
             const { name } = this.getEntity(id);
-            aOutput.push('● [' + lid + '] ' + name);
+            aOutput.push(' - [' + lid + '] ' + name);
         }
         if (aOutput.length > 0) {
             aOutput.unshift('{imp ' + this.getString('ui.visualDescObjects') + '}');
@@ -846,57 +754,6 @@ class MUDEngine {
         // autres joueurs
         aOutput.push(...this.renderOtherPlayersInRoom(idPlayer));
         return aOutput;
-    }
-
-    /**
-     * Le joueur va tenter de crocheter une serrure de porte
-     * @param idPlayer
-     * @param sDirection
-     */
-    actionPlayerPicklock (idPlayer, sDirection) {
-        const oPlayer = this.getEntity(idPlayer);
-        const idRoom = oPlayer.location;
-        const { valid, locked, dcPicklock, code } = this.getPlayerDoorStatus(idPlayer, sDirection);
-        if (!valid) {
-            this.notifyPlayer(idPlayer, '$events.doorInvalid');
-            return
-        }
-        if (code) {
-            this.notifyPlayer(idPlayer, '$events.doorHasCode');
-            return;
-        }
-        if (!locked) {
-            this.notifyPlayer(idPlayer, '$events.doorNotLocked');
-            return;
-        }
-        const nSkill = this.getPlayerSkill(idPlayer, 'picklock');
-        if (nSkill >= dcPicklock) {
-            this.notifyPlayer(idPlayer, '$events.picklockSuccess');
-            this.notifyRoom(idRoom, idPlayer, '$events.roomPicklockSuccess', oPlayer.name, '$directions.v' + sDirection);
-            this.setDoorLocked(idRoom, sDirection, false);
-        } else {
-            this.notifyPlayer(idPlayer, '$events.picklockFailed');
-            this.notifyRoom(idRoom, idPlayer, '$events.roomPicklockFailed', oPlayer.name, '$directions.v' + sDirection);
-        }
-    }
-
-    /**
-     * Le joueur tente de rechercher les issues secretes
-     * @param idPlayer
-     */
-    actionPlayerSearch (idPlayer, sDirection) {
-        const nSkill = this.getPlayerSkill(idPlayer, 'spot');
-        const { valid, secret, visible, dcSearch } = this.getPlayerDoorStatus(idPlayer, sDirection);
-        if (!valid) {
-            this.notifyPlayer(idPlayer, '$events.doorSearchFailed');
-        }
-        if (visible) {
-            this.notifyPlayer(idPlayer, '$events.doorSearchElsewhere');
-        }
-        if (secret && nSkill >= dcSearch) {
-            this.setPlayerDoorSpotted(idPlayer, sDirection, true);
-            this.notifyPlayer(idPlayer, '$events.doorSearchSuccess');
-        }
     }
 }
 

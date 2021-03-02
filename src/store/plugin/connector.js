@@ -71,7 +71,7 @@ class CommandRepository {
         this._store = storeIO;
 
         this._connector.events.on('disconnect', () => {
-            console.info('Connection with server has been closed.');
+            console.warn('Connection with server has been closed.');
             this._store.termPrint('*', 'Connection with server has been closed.');
         })
 
@@ -128,10 +128,9 @@ class CommandRepository {
 
     async command (sInput) {
         try {
-            console.info('Store plugin V', 1);
+            await this._store.termPrint('#system', sInput);
             const sLine = sInput.trim();
             const aParams = quoteSplit(sLine); // sLine.split(' ');
-            console.log(sLine, aParams);
             // extract command
             const sCommand = aParams.shift().toLowerCase();
             const sMeth = 'cmd_' + sCommand;
@@ -155,7 +154,6 @@ export default function main() {
         const cmd = new CommandRepository(storeIO)
 
         store.subscribeAction(async (action) => {
-            console.log('action', action.type, action.payload);
             switch (action.type) {
                 case 'terminal/submitCommand':
                     await cmd.command(action.payload.command);

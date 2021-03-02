@@ -6,7 +6,7 @@ html, body, #vue-application {
 }
 
 body, input.command {
-    font-family: "Flexi_IBM_VGA_False", monospace;
+    font-family: "decterm", monospace;
     font-size: 24px;
     font-weight: bold;
     word-wrap: break-word;
