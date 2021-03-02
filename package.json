@@ -25,7 +25,7 @@
     "webpack-cli": "^3.3.11"
   },
   "dependencies": {
-    "@laboralphy/ws-service": "^0.5.0",
+    "@laboralphy/ws-service": "^0.6.0",
     "dotenv": "^8.2.0",
     "vue": "^2.6.11",
     "vue-router": "^3.2.0",
