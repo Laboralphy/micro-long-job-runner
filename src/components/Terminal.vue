@@ -80,8 +80,8 @@ export default {
       this.inputString = '';
       this.$emit('command', { command: sCommand });
     },
-    doLinkAction: function (sText) {
-      console.log('link:', sText);
+    doLinkAction: function (command) {
+      this.$emit('command', { command });
     }
   },
 
@@ -113,5 +113,9 @@ export default {
   padding-left: 0.5em;
   padding-right: 0.5em;
   cursor: pointer;
+}
+
+input.command:focus {
+  outline: none;
 }
 </style>

@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node server/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jasmine ./tests/index.js",
     "build": "webpack",
     "watch": "webpack --watch"
   },
@@ -14,6 +14,7 @@
   "devDependencies": {
     "css-loader": "^3.5.3",
     "file-loader": "^6.0.0",
+    "jasmine": "^3.6.4",
     "source-map-loader": "^0.2.4",
     "style-loader": "^1.2.1",
     "url-loader": "^4.1.0",
@@ -27,6 +28,7 @@
   "dependencies": {
     "@laboralphy/ws-service": "^0.6.0",
     "dotenv": "^8.2.0",
+    "jsonschema": "^1.4.0",
     "vue": "^2.6.11",
     "vue-router": "^3.2.0",
     "vuex": "^3.4.0"

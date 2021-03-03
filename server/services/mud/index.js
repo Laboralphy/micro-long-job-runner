@@ -3,11 +3,13 @@ const util = require('util');
 const path = require('path');
 const Scriptorium = require('../../../libs/scriptorium');
 const MUDEngine = require('./MUDEngine');
+const STATE = require('./w3000.json');
 
 class ServiceMUD extends ServiceAbstract {
     init() {
         const sc = new Scriptorium();
         const m = new MUDEngine();
+        m.state = STATE;
         m.events.on('player-event', ({ id, message }) => {
             this.socketEmit(id, 'TERM_PRINT', { screen: null, content: '{pa ' + message + '}' });
         });
@@ -34,19 +36,23 @@ class ServiceMUD extends ServiceAbstract {
 
         const print = message => this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: message });
         const quit = () => socket.disconnect();
-        const help = sPage => this
-          ._scriptorium
-          .displayHelp(sPage)
-          .forEach(({ section, text }) => {
-              print('{imp ' + section + '}');
-              if (Array.isArray(text)) {
-                  text.forEach(print);
-                  print('');
-              } else {
-                  print(text);
-                  print('');
-              }
-          });
+        const help = sCommand => {
+            const h = this._scriptorium.displayHelp(sCommand);
+            if (h) {
+                h.forEach(({ section, text }) => {
+                    print('{imp ' + section + '}');
+                    if (Array.isArray(text)) {
+                        text.forEach(print);
+                        print('');
+                    } else {
+                        print(text);
+                        print('');
+                    }
+                });
+            } else {
+                print('Unknown command : ' + sCommand);
+            }
+        }
 
         const context = {
             print,
@@ -69,7 +75,7 @@ class ServiceMUD extends ServiceAbstract {
                           this.getClient(uid).socket.disconnect();
                       });
                 } else {
-                    this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: 'Commande inconnue : ' + sScript });
+                    print('{neg Unknown command : ' + sScript + '}');
                 }
             }
         });

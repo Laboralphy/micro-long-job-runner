@@ -1,0 +1,9 @@
+@font-face {
+    font-family: 'decterm';
+    src: url('fonts/decterm.eot');
+    src: url('fonts/decterm.eot') format('embedded-opentype'),
+         url('fonts/decterm.woff2') format('woff2'),
+         url('fonts/decterm.woff') format('woff'),
+         url('fonts/decterm.ttf') format('truetype'),
+         url('fonts/decterm.svg#decterm') format('svg');
+}

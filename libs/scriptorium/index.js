@@ -83,16 +83,26 @@ class Scriptorium {
                 return Promise.reject(e.message);
             }
         } else {
-            return Promise.reject('invalid script route : "' + sId + '"');
+            return Promise.reject('Invalid script route : "' + sId + '"');
         }
     }
 
     displayHelp (sId) {
         if (sId in this._routes) {
             const script = this._routes[sId];
-            return script.help();
+            if (typeof script.help === 'function') {
+                return script.help();
+            } else {
+                return [{
+                    section: 'Error',
+                    text: 'Help data not found for command : ' + sId + '.'
+                }];
+            }
         } else {
-            return ['Help file not found'];
+            return [{
+                section: 'Error',
+                text: 'Unknown command : ' + sId + '.'
+            }];
         }
     }
 

@@ -6,7 +6,7 @@ function help () {
       },
       {
         section: 'Syntaxe',
-        text: 'go &lt;direction&gt;'
+        text: 'go {i direction}'
       },
       {
         section: 'Description',
@@ -22,16 +22,16 @@ function help () {
 function main ({ mud, print, command, uid, pid }, sDirection) {
     const { valid, visible, locked, destination } = mud.getPlayerDoorStatus(pid, sDirection);
     if (valid && visible && !locked) {
-        mud.notifyPlayer(pid, '$events.walk', '$directions.v' + sDirection);
+        mud.notifyPlayer(pid, 'events.walk', 'directions.v' + sDirection);
         const oPlayer = mud.getEntity(pid);
-        mud.notifyRoom(oPlayer.location, pid, '$events.roomPlayerLeft', oPlayer.name,'$directions.v' + sDirection);
+        mud.notifyRoom(oPlayer.location, pid, 'events.roomPlayerLeft', oPlayer.name,'directions.v' + sDirection);
         mud.setEntityLocation(pid, destination);
-        mud.notifyRoom(oPlayer.location, pid, '$events.roomPlayerArrived', oPlayer.name);
+        mud.notifyRoom(oPlayer.location, pid, 'events.roomPlayerArrived', oPlayer.name);
         mud
           .renderPlayerVisualReport(pid)
           .forEach(s => print(s));
     } else {
-        mud.notifyPlayer(pid, '$events.cannotWalk', '$directions.v' + sDirection);
+        mud.notifyPlayer(pid, 'events.cannotWalk', 'directions.v' + sDirection);
     }
 }
 

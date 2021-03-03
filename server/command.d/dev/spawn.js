@@ -6,7 +6,7 @@
  * @param nCount {number} nombre d'exemplaire (pour les item stackable
  */
 function main ({ mud, pid }, sBlueprint, nCount= 1) {
-    mud.createEntity(sBlueprint, mud.getEntityLocation(pid), nCount);
+    mud.createEntity(sBlueprint, mud.getEntity(pid).location, nCount);
 }
 
 module.exports = { main }
