@@ -3,11 +3,13 @@ const util = require('util');
 const path = require('path');
 const Scriptorium = require('../../../libs/scriptorium');
 const MUDEngine = require('./MUDEngine');
+const STATE = require('./w3000.json');
 
 class ServiceMUD extends ServiceAbstract {
     init() {
         const sc = new Scriptorium();
         const m = new MUDEngine();
+        m.state = STATE;
         m.events.on('player-event', ({ id, message }) => {
             this.socketEmit(id, 'TERM_PRINT', { screen: null, content: '{pa ' + message + '}' });
         });

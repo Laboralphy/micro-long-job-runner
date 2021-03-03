@@ -1,8 +1,7 @@
 const util = require('util');
 const Events = require('events');
 const DiscardableRegistry = require('../../../libs/discardable-registry');
-
-const STATE = require('./w3000.json');
+const STRINGS = require('./mud-strings.json');
 
 class KeyNotFoundError extends Error {
     constructor(sKey, sCollection) {
@@ -29,7 +28,15 @@ class MUDEngine {
         this._events = new Events();
         this._lastId = 0;
         this._localIdRegistry = {};
-        this._state = STATE;
+        this._STRINGS = STRINGS;
+    }
+
+    get state () {
+        return this._state;
+    }
+
+    set state (value) {
+        this._state = value;
     }
 
     /**
@@ -41,7 +48,7 @@ class MUDEngine {
      */
     getString (sPath, ...params) {
         try {
-            const sString = sPath.split('.').reduce((prev, curr) => prev[curr], this._state.strings).substr(0);
+            const sString = sPath.split('.').reduce((prev, curr) => prev[curr], this._STRINGS).substr(0);
             return util.format(sString, ...params);
         } catch (e) {
             return util.format(sPath, ...params)
@@ -105,7 +112,7 @@ class MUDEngine {
             id: idEntity,
             blueprint: oBlueprint,
             tag: oBlueprint.tag,
-            count: oEntity.stack,
+            stack: oEntity.stack,
             location: '',
             buc: oEntity.buc,
             identified: oEntity.identified,
@@ -141,7 +148,7 @@ class MUDEngine {
             id: idEntity,
             blueprint: oBlueprint,
             tag: oBlueprint.tag,
-            count: nCount,
+            stack: nCount,
             location: '',
             buc: 'u',
             identified: true,
@@ -249,7 +256,7 @@ class MUDEngine {
 
     getRoomEntityStorage(idRoom) {
         const oRoom = this.getRoom(idRoom);
-        if (!(idRoom) in this._localIdRegistry) {
+        if (!(idRoom in this._localIdRegistry)) {
             this._localIdRegistry[idRoom] = {
                 i: new DiscardableRegistry('i'), // les objets d'inventaire
                 p: new DiscardableRegistry('p'), // les joueurs
@@ -307,7 +314,8 @@ class MUDEngine {
         const oEntity = this.getEntity(idEntity);
         const sType = oEntity.blueprint.type;
         const sMiniType = sType.charAt(0).toLowerCase();
-        this.getRoomEntityStorage(idRoom)[idEntity] = this._localIdRegistry[idRoom][sMiniType].getId();
+        const oRES = this.getRoomEntityStorage(idRoom);
+        oRES[idEntity] = this._localIdRegistry[idRoom][sMiniType].getId();
     }
 
     /**
@@ -344,50 +352,95 @@ class MUDEngine {
     }
 
     /**
+     * Recherche et trouve une pile du même accabi que l'obket transmis en paramètre
+     * @param oItem {object}
+     * @param aInventory {[]}
+     */
+    findItemStack (oItem, aInventory) {
+        const oPileFound = aInventory.find(oInvEntry => {
+            const oOtherItem = this.getEntity(oInvEntry.id);
+            return oOtherItem.blueprint.ref === oItem.blueprint.ref &&
+                oOtherItem.buc === oItem.buc &&
+                oOtherItem.identified === oItem.identified &&
+                oOtherItem.tag === oItem.tag;
+        });
+        return oPileFound ? oPileFound.id : null;
+    }
+
+    /**
      * Ajoute un objet dans l'inventaire de l'entity
      * @param idItem {string} identifiant de l'objet à ramasser
      * @param idEntity {string} identifiant de la creature
      */
-    addInventoryItem (idEntity, idItem) {
+    takeItem (idEntity, idItem, count = Infinity) {
+        if (count < 1) {
+            return null;
+        }
         const oEntity = this.getEntity(idEntity);
         const oItem = this.getEntity(idItem);
         if (oEntity.inventory) {
             // l'entité bénéficiaire a bienun inventaire
-            const oInventory = oEntity.inventory;
-            if (oItem.blueprint.stackable) {
+            const aInventory = oEntity.inventory;
+            if (oItem.blueprint.stackable && oItem.stack > count) {
                 // l'item qu'on veut déposer est stackable
                 // recherche une éventuelle pile d'objet du meme blueprint
-                const oPile = oInventory.find(oInvEntry => {
-                    const oOtherItem = oInvEntry.item;
-                    return oOtherItem.blueprint.ref === oItem.blueprint.ref &&
-                        oOtherItem.buc === oItem.buc &&
-                        oOtherItem.identified === oItem.identified &&
-                        oOtherItem.tag === oItem.tag;
-                });
-                if (oPile) {
+                const idPile = this.findItemStack(oItem, aInventory);
+                if (idPile) {
+                    // une pile du même type d'objet existe déja dans l'inventaire
+                    const oInvItem = this.getEntity(idPile);
                     // additionner les piles
-                    oPile.item.stack += oItem.stack;
-                    this.destroyEntity(idItem);
+                    if (oItem.stack > count) {
+                        // on ne veut qu'une partie de la pile
+                        oItem.stack -= count;
+                        oInvItem.stack += count;
+                    } else {
+                        // on prend tout
+                        oInvItem.stack += oItem.stack;
+                        this.destroyEntity(idItem);
+                    }
+                    return;
+                } else {
+                    // créer un clone de la pile d'origin
+                    const idClone = this.cloneEntity(oItem);
+                    const oClone = this.getEntity(idClone);
+                    // ajuster les piles
+                    oItem.stack -= count;
+                    oClone.stack = count;
+                    const lid = this._localIdRegistry[idEntity].inv.getId();
+                    aInventory.push({
+                        lid,
+                        id: idClone
+                    });
                     return;
                 }
             }
             // obtenir local id
             const lid = this._localIdRegistry[idEntity].inv.getId();
-            oInventory.push({
+            aInventory.push({
                 lid,
-                item: oItem
+                id: idItem
             });
-            this.removeRoomEntity(oItem.location, oItem);
+            this.removeRoomEntity(oItem.location, idItem);
         }
     }
 
-    removeInventoryItem (idEntity, idItem, count) {
+    /**
+     * Retire un objet de l'inventaire
+     * @param idEntity {string} identifiant de l'entité qui possède l'inventaire
+     * @param idItem {string} identifiant de l'item
+     * @param count {number} pour les objects empilable on peut spécifier une quantité d'exemplaire
+     * @returns {null|*} objet nouvellement retiré
+     */
+    dropItem (idEntity, idItem, count = Infinity) {
+        if (count < 1) {
+            return null;
+        }
         const oEntity = this.getEntity(idEntity);
         const oItem = this.getEntity(idItem);
         if (oEntity.inventory) {
             const oInventory = oEntity.inventory;
             // chercher si l'item est bien dans l'inventaire
-            const iItem = oInventory.findIndex(({ item }) => item === oItem);
+            const iItem = oInventory.findIndex(({ id }) => id === idItem);
             if (iItem >= 0) {
                 // est ce un objet empilable ?
                 if (oItem.blueprint.stackable && count < oItem.stack) {
@@ -407,6 +460,7 @@ class MUDEngine {
                 }
             }
         }
+        return null;
     }
 
 

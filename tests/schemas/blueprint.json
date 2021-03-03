@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "http://example.com/example.json",
+  "type": "object",
+  "title": "Blueprint validation schema",
+  "description": "Les blueprints servent à créer des entités.",
+  "default": {},
+  "examples": [
+    {
+      "type": "item",
+      "subtype": "key",
+      "name": "Key to office 3011",
+      "desc": [
+        "A small key which open room 3011"
+      ],
+      "weight": 0.1,
+      "stackable": false,
+      "identified": true,
+      "buc": "u",
+      "tag": "k3011",
+      "inventory": false
+    }
+  ],
+  "required": [
+    "type",
+    "subtype",
+    "name",
+    "desc",
+    "weight",
+    "stackable",
+    "identified",
+    "buc",
+    "tag",
+    "inventory"
+  ],
+  "properties": {
+    "type": {
+      "$id": "#/properties/type",
+      "type": "string",
+      "title": "Le type de l'entité",
+      "description": "Deux entités de types différents sont gérées diffférent. Un objet d'inventaire se gère différement d'une creature hostile...",
+      "default": "",
+      "examples": [
+        "item"
+      ]
+    },
+    "subtype": {
+      "$id": "#/properties/subtype",
+      "type": "string",
+      "title": "Le sous-type",
+      "description": "Le sous type permet de préciser davantage le role de l'entité. Parmis les entité de type objet d'inventaire il peut y avoir des sous type différents (arme, clé, livre, ...)",
+      "default": "",
+      "examples": [
+        "key"
+      ]
+    },
+    "name": {
+      "$id": "#/properties/name",
+      "type": "string",
+      "title": "Nom de l'entité",
+      "description": "Le nom affichable de l'entité",
+      "default": "",
+      "examples": [
+        "Clé du bureau 3011"
+      ]
+    },
+    "desc": {
+      "$id": "#/properties/desc",
+      "type": "array",
+      "title": "La description de l'entité",
+      "description": "Las description est destinée à être affichée.",
+      "default": [],
+      "examples": [
+        [
+          "Une petite clé plate sur laquelle est inscrit le nombre 3011"
+        ]
+      ],
+      "additionalItems": true,
+      "items": {
+        "$id": "#/properties/desc/items",
+        "anyOf": [
+          {
+            "$id": "#/properties/desc/items/anyOf/0",
+            "type": "string",
+            "title": "The first anyOf schema",
+            "description": "An explanation about the purpose of this instance.",
+            "default": "",
+            "examples": [
+              "Une petite clé plate sur laquelle est inscrit le nombre 3011"
+            ]
+          }
+        ]
+      }
+    },
+    "weight": {
+      "$id": "#/properties/weight",
+      "type": "number",
+      "title": "The weight schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": 0.0,
+      "examples": [
+        0.1
+      ]
+    },
+    "stackable": {
+      "$id": "#/properties/stackable",
+      "type": "boolean",
+      "title": "The stackable schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": false,
+      "examples": [
+        false
+      ]
+    },
+    "identified": {
+      "$id": "#/properties/identified",
+      "type": "boolean",
+      "title": "The identified schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": false,
+      "examples": [
+        true
+      ]
+    },
+    "buc": {
+      "$id": "#/properties/buc",
+      "type": "string",
+      "title": "The buc schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": "",
+      "examples": [
+        "u"
+      ]
+    },
+    "tag": {
+      "$id": "#/properties/tag",
+      "type": "string",
+      "title": "The tag schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": "",
+      "examples": [
+        "k3011"
+      ]
+    },
+    "inventory": {
+      "$id": "#/properties/inventory",
+      "type": "boolean",
+      "title": "The inventory schema",
+      "description": "An explanation about the purpose of this instance.",
+      "default": false,
+      "examples": [
+        false
+      ]
+    }
+  },
+  "additionalProperties": true
+}
