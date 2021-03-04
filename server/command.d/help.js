@@ -8,4 +8,4 @@ function main ({ help }, sCommand) {
   help(sCommand);
 }
 
-module.exports = { main };
+module.exports = { main, help };

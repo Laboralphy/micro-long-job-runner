@@ -1,3 +1,10 @@
+const STRINGS = {
+    "walk": "Vous allez %s.",
+    "cannotWalk": "Vous ne pouvez pas aller %s.",
+    "roomPlayerArrived": "%s vient d'arriver dans la zone.",
+    "roomPlayerLeft": "%s s'éloigne %s.",
+};
+
 function help () {
     return [
       {
@@ -21,17 +28,18 @@ function help () {
 
 function main ({ mud, print, command, uid, pid }, sDirection) {
     const { valid, visible, locked, destination } = mud.getPlayerDoorStatus(pid, sDirection);
+    const sToDir = 'directions.v' + sDirection;
     if (valid && visible && !locked) {
-        mud.notifyPlayer(pid, 'events.walk', 'directions.v' + sDirection);
+        mud.notifyPlayer(pid, STRINGS.walk, sToDir);
         const oPlayer = mud.getEntity(pid);
-        mud.notifyRoom(oPlayer.location, pid, 'events.roomPlayerLeft', oPlayer.name,'directions.v' + sDirection);
+        mud.notifyRoom(oPlayer.location, pid, STRINGS.roomPlayerLeft, oPlayer.name, sToDir);
         mud.setEntityLocation(pid, destination);
-        mud.notifyRoom(oPlayer.location, pid, 'events.roomPlayerArrived', oPlayer.name);
+        mud.notifyRoom(oPlayer.location, pid, STRINGS.roomPlayerArrived, oPlayer.name);
         mud
           .renderPlayerVisualReport(pid)
           .forEach(s => print(s));
     } else {
-        mud.notifyPlayer(pid, 'events.cannotWalk', 'directions.v' + sDirection);
+        mud.notifyPlayer(pid, STRINGS.cannotWalk, sToDir);
     }
 }
 

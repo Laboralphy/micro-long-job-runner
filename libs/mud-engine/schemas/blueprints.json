@@ -1,0 +1,162 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "http://example.com/example.json",
+  "type": "object",
+  "title": "Blueprint validation schema",
+  "description": "Les blueprints servent à créer des entités qui composent l'ensembles des chose dynamique dans le monde du jeu.",
+  "default": {},
+  "examples": [
+    {
+      "type": "item",
+      "subtype": "key",
+      "name": "Key to office 3011",
+      "desc": [
+        "A small key which open room 3011."
+      ],
+      "uname": "Key",
+      "udesc": [
+        "A key used to open a specific locked door."
+      ],
+      "weight": 0.1,
+      "stackable": false,
+      "identified": true,
+      "buc": "u",
+      "tag": "k3011",
+      "inventory": false
+    }
+  ],
+  "required": [
+    "type",
+    "subtype",
+    "name",
+    "desc"
+  ],
+  "properties": {
+    "type": {
+      "$id": "#/properties/type",
+      "type": "string",
+      "title": "Le type de l'entité",
+      "description": "Deux entités de types différents sont gérées différemment. Les actions que l'on peut faire sur un objet d'inventaire ne sont pas celle qu'on ferait sur une creature hostile...",
+      "default": "",
+      "examples": [
+        "item"
+      ]
+    },
+    "subtype": {
+      "$id": "#/properties/subtype",
+      "type": "string",
+      "title": "Le sous-type",
+      "description": "Le sous-type permet de préciser davantage le role de l'entité. Parmis les entité de type objet d'inventaire il peut y avoir des sous-types différents (arme, clé, livre, ...)",
+      "default": "",
+      "examples": [
+        "key"
+      ]
+    },
+    "name": {
+      "$id": "#/properties/name",
+      "type": "string",
+      "title": "Nom de l'entité",
+      "description": "Le nom affichable de l'entité",
+      "default": "",
+      "examples": [
+        "Clé du bureau 3011"
+      ]
+    },
+    "desc": {
+      "$id": "#/properties/desc",
+      "type": "array",
+      "title": "La description de l'entité",
+      "description": "La description est une liste de chaines destinée à être affichée.",
+      "default": [],
+      "examples": [
+        [
+          "Une petite clé plate sur laquelle est inscrit le nombre 3011"
+        ]
+      ],
+      "additionalItems": true,
+      "items": {
+        "$id": "#/properties/desc/items",
+        "type": "string"
+      }
+    },
+    "uname": {
+      "$id": "#/properties/uname",
+      "type": "string",
+      "title": "Nom de l'entité (non-dentifié)",
+      "description": "Le nom affichable de l'entité lorsqu'elle n'est pas identifiée",
+      "default": "",
+      "examples": [
+        "Clé"
+      ]
+    },
+    "udesc": {
+      "$id": "#/properties/udesc",
+      "type": "array",
+      "title": "La description de l'entité non identifiée",
+      "description": "La description est destinée à être affichée lorsque l'entité n'est pas identifiée.",
+      "default": [],
+      "examples": [
+        [
+          "A key used to open a specific locked door."
+        ]
+      ],
+      "additionalItems": true,
+      "items": {
+        "$id": "#/properties/desc/items",
+        "type": "string"
+      }
+    },
+    "weight": {
+      "$id": "#/properties/weight",
+      "type": "number",
+      "title": "Poids de l'objet",
+      "description": "Le poids de l'objet quand un personnage le porte dans son inventaire.",
+      "default": 0.0
+    },
+    "stackable": {
+      "$id": "#/properties/stackable",
+      "type": "boolean",
+      "title": "Objet empilable ?",
+      "description": "Un objet empilable peut contenir plusieurs exemplaire de lui même sans un seul emplacement d'inventaire. Exemple : des flèches, des pièces de monnaie.",
+      "default": false
+    },
+    "identified": {
+      "$id": "#/properties/identified",
+      "type": "boolean",
+      "title": "Objet identifié ?",
+      "description": "Un objet non identifié n'affiche pas son status de béatitude (maudit/béni/normal).",
+      "default": true
+    },
+    "buc": {
+      "$id": "#/properties/buc",
+      "type": "string",
+      "enum": [
+        "u", "b", "c"
+      ],
+      "title": "Béatitude",
+      "description": "La béatitude est la propriété d'un objet à être maudit, béni ou normal.",
+      "default": "u"
+    },
+    "tag": {
+      "$id": "#/properties/tag",
+      "type": "string",
+      "title": "Tag",
+      "description": "Le tag est utilisé pour reconnaitre l'objet dans l'aventure. Certains mécanismes utilisent le tag pour la résolution de quêtes ou d'énigmes.",
+      "default": "",
+      "examples": [
+        "k3011"
+      ]
+    },
+    "inventory": {
+      "$id": "#/properties/inventory",
+      "type": "boolean",
+      "title": "Possède un inventaire ?",
+      "description": "Si la valeur de cette propriété est vrai alors l'entité possède un inventaire.",
+      "default": false,
+      "examples": [
+        false
+      ]
+    }
+  },
+  "additionalProperties": false
+}

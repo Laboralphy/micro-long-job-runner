@@ -2,7 +2,7 @@ const ServiceAbstract = require('@laboralphy/ws-service/abstract');
 const util = require('util');
 const path = require('path');
 const Scriptorium = require('../../../libs/scriptorium');
-const MUDEngine = require('./MUDEngine');
+const MUDEngine = require('../../../libs/mud-engine');
 const STATE = require('./w3000.json');
 
 class ServiceMUD extends ServiceAbstract {
@@ -43,10 +43,8 @@ class ServiceMUD extends ServiceAbstract {
                     print('{imp ' + section + '}');
                     if (Array.isArray(text)) {
                         text.forEach(print);
-                        print('');
                     } else {
                         print(text);
-                        print('');
                     }
                 });
             } else {
