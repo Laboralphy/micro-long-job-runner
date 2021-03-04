@@ -36,8 +36,8 @@ function help () {
 
 function main(context, sDirectionOrEntity) {
     // déterminer si c'est une direction
-    if (DIRECTIONS.includes(sDirectionOrEntity)) {
-        const sDirection = sDirectionOrEntity;
+    if (context.mud.isDirection(sDirectionOrEntity)) {
+        const sDirection = context.mud.getValidDirection(sDirectionOrEntity);
         const idPlayer = context.pid;
         const mud = context.mud;
         const oPlayer = mud.getEntity(idPlayer);
@@ -62,13 +62,15 @@ function main(context, sDirectionOrEntity) {
         const nSkill = mud.getPlayerSkill(idPlayer, 'picklock');
         if (nSkill >= dcPicklock) {
             // on crochète
-            mud.notifyPlayer(idPlayer, STRINGS.picklockSuccess);
+            mud.notifyPlayerSuccess(idPlayer, STRINGS.picklockSuccess);
             mud.notifyRoom(idRoom, idPlayer, STRINGS.roomPicklockSuccess, oPlayer.name, 'directions.v' + sDirection);
             mud.setDoorLocked(idRoom, sDirection, false);
         } else {
-            mud.notifyPlayer(idPlayer, STRINGS.picklockFailed);
+            mud.notifyPlayerFailure(idPlayer, STRINGS.picklockFailed);
             mud.notifyRoom(idRoom, idPlayer, STRINGS.roomPicklockFailed, oPlayer.name, 'directions.v' + sDirection);
         }
+    } else {
+        // ce n'est pas une direction, c'est un objet plaçable, ou un item du genre : sac ou besace
     }
 }
 

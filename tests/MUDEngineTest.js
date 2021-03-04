@@ -84,13 +84,13 @@ describe('#MUDEngine', function () {
         it('vérifier création d\'une entité', function() {
             const m = new MUDEngine();
             m.state = createState1();
-            m.createNewPlayer('x1', 'test', 'room::r1');
+            m.createPlayerEntity('x1', 'test', 'room::r1');
             expect(m.getRoomLocalEntity('room::r1', 'i1')).toBeDefined();
         });
         it('vérifier qu\'on puisse rammasser l\'objet i1', function() {
             const m = new MUDEngine();
             m.state = createState1();
-            const pid = m.createNewPlayer('x1', 'test', 'room::r1');
+            const pid = m.createPlayerEntity('x1', 'test', 'room::r1');
             const p = m.getEntity(pid);
             expect(Object.keys(p.inventory).length).toBe(0);
             const oItem = m.getRoomLocalEntity('room::r1', 'i1');
@@ -103,7 +103,7 @@ describe('#MUDEngine', function () {
         it('rammasser l\'objet i1 puis le poser', function() {
             const m = new MUDEngine();
             m.state = createState1();
-            const pid = m.createNewPlayer('x1', 'test', 'room::r1');
+            const pid = m.createPlayerEntity('x1', 'test', 'room::r1');
             const oItem = m.getRoomLocalEntity('room::r1', 'i1');
             m.takeItem(pid, oItem.id);
             expect(m.getRoomLocalEntity('room::r1', 'i1')).toBeNull();
@@ -115,7 +115,7 @@ describe('#MUDEngine', function () {
         it('manipuler des stack d\'objet', function() {
             const m = new MUDEngine();
             m.state = createState1();
-            const pid = m.createNewPlayer('x1', 'test', 'room::r1');
+            const pid = m.createPlayerEntity('x1', 'test', 'room::r1');
             const idPileSol = m.createEntity('blueprint::or', 'room::r1', 20);
             // la pile au sol contient 20 pièces
             // on prend 7 pièces
@@ -138,7 +138,7 @@ describe('#MUDEngine', function () {
         it('check if we can move from a room to another', function() {
             const m = new MUDEngine();
             m.state = createState1();
-            const pid = m.createNewPlayer('x1', 'test', 'room::r1');
+            const pid = m.createPlayerEntity('x1', 'test', 'room::r1');
             expect(m.getEntity(pid).location).toBe('room::r1');
             m.setEntityLocation(pid, 'room::r2');
             expect(m.getEntity(pid).location).toBe('room::r2');

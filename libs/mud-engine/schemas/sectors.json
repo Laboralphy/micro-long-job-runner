@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "http://example.com/example.json",
+  "type": "object",
+  "title": "Secteur",
+  "description": "Structure de définition d'un secteur.",
+  "default": {},
+  "examples": [
+    {
+      "name": "Premier secteur",
+      "desc": [
+        "Cet ensemble de couloirs et bureaux constitue le premier secteur jamais construit sur ce MUD.",
+        "C'est pourquoi il semble si ennuyeux à explorer"
+      ]
+    }
+  ],
+  "required": [
+    "name",
+    "desc"
+  ],
+  "properties": {
+    "name": {
+      "$id": "#/properties/name",
+      "type": "string",
+      "title": "Nom",
+      "description": "Le nom du secteur.",
+      "default": "",
+      "examples": [
+        "Secteur nord de la station"
+      ]
+    },
+    "desc": {
+      "$id": "#/properties/desc",
+      "type": "array",
+      "title": "Description",
+      "description": "La description est affichée sur plusieurs lignes.",
+      "default": [],
+      "examples": [
+        [
+          "Le secteur nord est un ensemble de mines dont les tunnels s'engoufrent dans les entralles de l'astéroïde"
+        ]
+      ],
+      "additionalItems": true,
+      "items": {
+        "$id": "#/properties/desc/items",
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

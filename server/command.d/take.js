@@ -1,8 +1,10 @@
 const STRINGS = {
   'youFound': 'Vous rammassez %s.',
+  'youFoundStack': 'Vous rammassez %s (x%s).',
   'someoneFoundHere': "%s fouille dans la pièce et déniche %s.",
   'someoneFound': '%s fouille dans %s et déniche %s.',
-  'itemNotFound': "L'objet recherché n'est pas dans le contenant.",
+  'itemNotInContainer': "L'objet que vous voulez prendre n'est pas dans le contenant.",
+  'itemNotInRoom': "Ceci ne correspond à aucun objet visible dans cette pièce.",
   'containerTooFar': "Le dernier contenant ouvert n'est pas dans cette pièce."
 };
 
@@ -36,19 +38,25 @@ function main ({ mud, print, command, pid }, lid, count = Infinity) {
       if (oObject) {
         // l'objet voulu est bien dedans
         mud.takeItem(idLastContainer, oObject.id, count);
-        mud.notifyPlayer(pid, STRINGS.youFound, oObject.name);
+        if (oObject.blueprint.stackable) {
+          mud.notifyPlayer(pid, STRINGS.youFoundStack, oObject.name, count);
+        } else {
+          mud.notifyPlayer(pid, STRINGS.youFound, oObject.name);
+        }
         mud.notifyRoom(idRoom, pid, STRINGS.someoneFound, oPlayer.name, oContainer.name, oObject.name);
       } else {
         // le lid ne correspond pas à un objet valide
         // l'objet voulu n'est pas dedans
-        mud.notifyPlayer(pid, "itemNotFound");
+        mud.notifyPlayerFailure(pid, STRINGS.itemNotInContainer);
       }
     } else {
       // on est loin du container
-      mud.notifyPlayer(pid, "Le dernier contenant ouvert n'est pas dans cette pièce.");
+      mud.notifyPlayerFailure(pid, STRINGS.containerTooFar);
     }
   } else {
-    // on ne cherche pas dans un container valide
+    // l'objet recherché ne correspond pas à un objet au sol
+    // ni a un objet contenu dans le dernier content ouvert
+    mud.notifyPlayerFailure(pid, STRINGS.itemNotInRoom);
   }
 }
 

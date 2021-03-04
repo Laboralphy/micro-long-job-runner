@@ -1,5 +1,4 @@
 {
-  "entities": {},
   "blueprints": {
     "blueprint::k3011": {
       "type": "item",
@@ -13,6 +12,20 @@
       "identified": true,
       "buc": "u",
       "tag": "k3011",
+      "inventory": false
+    },
+    "blueprint::gp": {
+      "type": "item",
+      "subtype": "gold",
+      "name": "Pièce d'or",
+      "desc": [
+        "De l'or"
+      ],
+      "weight": 0.085,
+      "stackable": true,
+      "identified": true,
+      "buc": "u",
+      "tag": "gp",
       "inventory": false
     }
   },
@@ -42,6 +55,10 @@
       "defaultEntities": [
         {
           "blueprint": "blueprint::k3011"
+        },
+        {
+          "blueprint": "blueprint::gp",
+          "stack": 100
         }
       ]
     },

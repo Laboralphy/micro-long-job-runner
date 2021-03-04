@@ -5,6 +5,9 @@ const STRINGS = {
 };
 
 function main({ mud, pid }, sDirection, sCode) {
+    if (!mud.checkDirection(pid, sDirection)) {
+        return;
+    }
     // vérifier si on possède la clé pour ouvrir la porte
     // quel est le tag de la serrure ?
     const oDoorStatus = mud.getPlayerDoorStatus(pid, sDirection);
@@ -15,10 +18,10 @@ function main({ mud, pid }, sDirection, sCode) {
         const oKey = mud.getEntity(idFoundKey);
         const oPlayer = mud.getEntity(pid);
         mud.setDoorLocked(oPlayer.location, sDirection, false);
-        mud.notifyPlayer(pid, STRINGS.keyFound, oKey.name);
+        mud.notifyPlayerSuccess(pid, STRINGS.keyFound, oKey.name);
         mud.notifyRoom(oPlayer.location, pid, STRINGS.roomKeyFound, oPlayer.name, 'directions.a' + sDirection);
     } else {
-        mud.notifyPlayer(pid, STRINGS.keyNotFound);
+        mud.notifyPlayerFailure(pid, STRINGS.keyNotFound);
     }
 }
 

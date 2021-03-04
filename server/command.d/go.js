@@ -27,6 +27,9 @@ function help () {
 }
 
 function main ({ mud, print, command, uid, pid }, sDirection) {
+    if (!mud.checkDirection(pid, sDirection)) {
+      return;
+    }
     const { valid, visible, locked, destination } = mud.getPlayerDoorStatus(pid, sDirection);
     const sToDir = 'directions.v' + sDirection;
     if (valid && visible && !locked) {

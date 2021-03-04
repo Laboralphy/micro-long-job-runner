@@ -6,9 +6,12 @@ const DisposableIdRegistry = require('../disposable-id-registry');
 const STRINGS = require('./mud-strings.json');
 const SCHEMAS = {
     blueprints: require('./schemas/blueprints.json'),
-    rooms: require('./schemas/rooms.json')
+    rooms: require('./schemas/rooms.json'),
+    sectors: require('./schemas/sectors.json')
 };
 const { KeyNotFoundError, InvalidSchemasError } = require('./errors');
+
+const CODE_DIRECTIONS = ['n', 'e', 'w', 's', 'ne', 'nw', 'se', 'sw'];
 
 class MUDEngine {
     constructor() {
@@ -43,8 +46,8 @@ class MUDEngine {
         return this._state;
     }
 
-    set state (value) {
-        this._state = value;
+    get events () {
+        return this._events;
     }
 
     /**
@@ -63,138 +66,44 @@ class MUDEngine {
         }
     }
 
-    get events () {
-        return this._events;
-    }
-
+    /**
+     * Renvoie un identifiant de joueur
+     * @param id {*} id externe
+     * @returns {string}
+     */
     getPlayerId (id) {
         return 'player::' + id;
     }
 
     /**
-     * Création d'un nouveau personnage joueur
-     * @param id {string} identifiant externe (désigné par l'appli cliente) qui sera transformé en identifiant internet au mud
-     * @param sName
-     * @param sLocation {string} identifiant de la pièce ou sera localisé l'entité
-     * @returns {string|null}
+     * Renvoie l'objet blueprint correspondant à l'identifiant demandé
+     * @param idBlueprint {string} identifiant du blueprint
+     * @returns {object}
      */
-    createNewPlayer(id, sName, sLocation) {
-        // verifier si le nom est valide
-        if (!sName.match(/^\S{2,20}$/)) {
-            return null;
-        }
-        const idPlayer = this.getPlayerId(id);
-        const oPlayer = this._state.entities[idPlayer] = {
-            type: 'player',
-            id,
-            blueprint: {
-                type: 'player'
-            },
-            desc: [
-                'Description par défaut'
-            ],
-            name: sName,
-            location: '', // localisation (pièce) du joueur
-            sector: '', // indique le secteur dans lequel le joueur est.
-            inventory: {},
-            skills: {
-                spot: 5,
-                picklock: 5
-            },
-            spotted: {},
-            data: {}
-        };
-        this._localIdRegistry[idPlayer] = {
-            inv: new DisposableIdRegistry()
-        };
-        this.setEntityLocation(idPlayer, sLocation);
-        const oRoom = this.getRoom(sLocation);
-        this.notifyPlayer(idPlayer, 'events.youAreIn', oRoom.name);
-        this.notifyRoom(sLocation, idPlayer, 'events.roomPlayerArrived', oPlayer.name);
-        this.notifyAdmin('new player %s spawned at %s', oPlayer.name, oRoom.name);
-        return idPlayer;
-    }
-
-    cloneEntity (oEntity) {
-        ++this._lastId;
-        const idEntity = 'entity::' + this._lastId;
-        const oBlueprint = oEntity.blueprint;
-        const oClone = this._state.entities[idEntity] = {
-            ...oEntity,
-            id: idEntity,
-            inventory: {},
-            location: ''
-        };
-        if (oBlueprint.inventory) {
-            this._localIdRegistry[idEntity] = {
-                inv: new DisposableIdRegistry()
-            };
-        }
-        this.notifyAdmin('clone entity %s', oClone.name);
-        return oClone;
-    }
-
-    createEntity (sBlueprint, sLocation, nCount = 1) {
-        ++this._lastId;
-        const idEntity = 'entity::' + this._lastId;
-        const oBlueprint = this.getBlueprint(sBlueprint);
-        const oEntity = {
-            id: idEntity,
-            blueprint: oBlueprint,
-            tag: oBlueprint.tag,
-            location: '',
-            name: oBlueprint.name,
-            desc: oBlueprint.desc
-        };
-        switch (oBlueprint.type) {
-            case 'item':
-                Object.assign(oEntity, {
-                    stack: nCount,
-                    buc: oBlueprint.buc,
-                    identified: oBlueprint.identified,
-                    inventory: oBlueprint.inventory ? {} : null,
-                    name: oBlueprint.identified ? oBlueprint.name : oBlueprint.uname,
-                    desc: oBlueprint.identified ? oBlueprint.desc : oBlueprint.udesc
-                });
-                break;
-        }
-        this._state.entities[idEntity] = oEntity;
-        if (oBlueprint.inventory) {
-            this._localIdRegistry[idEntity] = {
-                inv: new DisposableIdRegistry('c')
-            };
-        }
-        if (sLocation) {
-            this.setEntityLocation(idEntity, sLocation);
-        }
-        return idEntity;
+    getBlueprint (idBlueprint) {
+        return this.getValidObject(idBlueprint, 'blueprints', true);
     }
 
     /**
-     * destruction d'une entité
-     * @param idEntity
+     * renvoie l'objet sector coorespondant à l'identifiant demandé
+     * @param idSector {string} identifiant du secteur recherché
+     * @returns {object}
      */
-    destroyEntity (idEntity) {
-        const oEntities = this._state.entities;
-        if (idEntity in oEntities) {
-            const oEntity = this._state.entities[idEntity];
-            // détruire les objets qu'il transportait
-            if (oEntity.inventory) {
-                Object.keys(oEntity.inventory).forEach(id => {
-                    this.destroyEntity(id);
-                });
-            }
-            const idRoom = this.getEntity(idEntity).location;
-            this.removeRoomEntity(idRoom, idEntity);
-            if (idEntity in this._localIdRegistry) {
-                delete this._localIdRegistry[idEntity];
-            }
-            delete oEntities[idEntity];
-        }
+    getSector (idSector) {
+        return this.getValidObject(idSector, 'sectors', true);
     }
 
+    /**
+     * Renvoie l'objet (room, blueprints, sector...) spécifié après vérification
+     * il ne s'agit pas d'objets manipulables.
+     * pour ces "objets" il s'agit principalement d'un objet abstrait comme une pièce ou un blueprint
+     * @param id {string} identifiant
+     * @param sTypes {string} fammile de types auquel appartient l'objet
+     * @param bFreeze {boolean} après vérif, l'objet est gelé
+     * @returns {object}
+     */
     getValidObject (id, sTypes, bFreeze = false) {
-        const oState = this._state;
+        const oState = this.state;
         if (!(sTypes in oState)) {
             throw new KeyNotFoundError(sTypes, 'state');
         }
@@ -222,16 +131,15 @@ class MUDEngine {
     }
 
     /**
-     * Renvoie l'objet blueprint correspondant à l'identifiant demandé
-     * @param idBlueprint {string} identifiant du blueprint
+     * Renvoie le dictionnaire des entités
      * @returns {object}
      */
-    getBlueprint (idBlueprint) {
-        return this.getValidObject(idBlueprint, 'blueprints', true);
+    getEntities () {
+        return this.state.entities;
     }
 
     getEntity (idEntity) {
-        const oEntity = this._state.entities;
+        const oEntity = this.getEntities();
         if (idEntity in oEntity) {
             return oEntity[idEntity];
         } else {
@@ -239,8 +147,46 @@ class MUDEngine {
         }
     }
 
+    /**
+     * Renvoie la structure de memorisation des secteurs
+     * @returns {object}
+     */
+    getSectors () {
+        return this.state.sectors;
+    }
+
+    /**
+     * Renvoie la structure de memorisation des pièces
+     * @returns {object}
+     */
+    getRooms () {
+        return this.state.rooms;
+    }
+
     getRoom (idRoom) {
         return this.getValidObject(idRoom, 'rooms', false);
+    }
+
+
+    isDirection (sDirection) {
+        return (typeof sDirection === 'string') && CODE_DIRECTIONS.indexOf(sDirection.toLowerCase()) >= 0;
+    }
+
+    getValidDirection (sParam) {
+        const s = sParam.toLowerCase();
+        if (this.isDirection(s)) {
+            return s;
+        } else {
+            throw new KeyNotFoundError(sParam, 'cardinals');
+        }
+    }
+
+    isRoomExist (idRoom) {
+        return idRoom in this.getRooms();
+    }
+
+    isEntityExist (idEntity) {
+        return idEntity in this.getEntities();
     }
 
     /**
@@ -297,19 +243,20 @@ class MUDEngine {
                 c: new DisposableIdRegistry('c')  // les créatures et les pnj
             };
         }
-        if (!('entities' in oRoom)) {
+        const oStorage = this.state.roomEntityStorage;
+        if (!(oStorage[idRoom])) {
             // construction du registre d'identifiant locaux
             // construction du stockage des entités
-            oRoom.entities = {};
+            oStorage[idRoom] = {};
             // on a profite pour coller tous les objet par default
             const aDefaultEntities = oRoom.defaultEntities;
             if (aDefaultEntities) {
-                aDefaultEntities.forEach(({ blueprint, count = 1 }) => {
-                    this.createEntity(blueprint, idRoom, count);
+                aDefaultEntities.forEach(({ blueprint, stack = 1 }) => {
+                    this.createEntity(blueprint, idRoom, stack);
                 });
             }
         }
-        return oRoom.entities;
+        return oStorage[idRoom];
     }
 
     /**
@@ -357,84 +304,7 @@ class MUDEngine {
         return aEntities.sort((a, b) => a.i - b.i);
     }
 
-    /**
-     * Ajoute une entity au registre des entités de la pièce
-     * attribue un numéro d'identification local
-     * @param idRoom {string} identifiant pièce
-     * @param idEntity {string} identifiant entité
-     */
-    addRoomEntity (idRoom, idEntity) {
-        // déterminer le type d'une entité
-        const oEntity = this.getEntity(idEntity);
-        const sType = oEntity.blueprint.type;
-        const sMiniType = sType.charAt(0).toLowerCase();
-        const oRES = this.getRoomEntityStorage(idRoom);
-        oRES[idEntity] = this._localIdRegistry[idRoom][sMiniType].getId();
-        oEntity.location = idRoom;
-    }
 
-    /**
-     * Ajoute une entité à l'inventaire
-     * @param idContainer {string}
-     * @param idItem {string}
-     */
-    addInventoryEntity (idContainer, idItem) {
-        const oEntity = this.getEntity(idItem);
-        const oContainer = this.getEntity(idContainer);
-        oContainer[idItem] = this._localIdRegistry[idContainer].inv.getId();
-        oEntity.location = idContainer;
-    }
-
-    /**
-     * Supprime une entité d'un container
-     * @param idContainer
-     * @param idItem
-     */
-    removeInventoryEntity (idContainer, idItem) {
-        const oContainer = this.getEntity(idContainer);
-        const lid = oContainer[idItem];
-        this._localIdRegistry[idContainer].inv.disposeId(lid);
-        delete oContainer[idItem];
-        const oItem = this.getEntity(idItem);
-        oItem.location = '';
-    }
-
-    /**
-     * Suprime une entity du registre des entités de la pièce
-     * @param idRoom {string} identifiant pièce
-     * @param idEntity {string} identifiant entité
-     */
-    removeRoomEntity (idRoom, idEntity) {
-        const lid = this.getRoomEntityStorage(idRoom)[idEntity];
-        const sMiniType = lid.charAt(0).toLowerCase();
-        this._localIdRegistry[idRoom][sMiniType].disposeId(lid);
-        delete this.getRoomEntityStorage(idRoom)[idEntity];
-        const oEntity = this.getEntity(idEntity);
-        oEntity.location = '';
-    }
-
-    /**
-     * Change la localisation d'une entité
-     * @param idTo {string} identifiant pièce
-     * @param idEntity {string} identifiant entité
-     */
-    setEntityLocation (idEntity, idTo) {
-        const oEntity = this.getEntity(idEntity);
-        const idPrevLocation = oEntity.location;
-        if (this.isRoomExist(idPrevLocation)) {
-            this.removeRoomEntity(idPrevLocation, idEntity);
-        } else if (this.isEntityExist(idPrevLocation)) {
-            this.removeInventoryEntity(idPrevLocation, idEntity);
-        }
-        if (this.isRoomExist(idTo)) {
-            this.addRoomEntity(idTo, idEntity);
-        } else if (this.isEntityExist(idTo)) {
-            // on va stocker l'entité dans un inventaire
-            this.addInventoryEntity(idTo, idEntity);
-        } else {
-            throw new KeyNotFoundError(idTo, 'rooms/entites');
-        }
-    }
 
     /**
      * Recherche et trouve une pile du même accabi que l'obket transmis en paramètre
@@ -457,6 +327,13 @@ class MUDEngine {
         return null;
     }
 
+    /**
+     * cherche et renvoie un objet possédant un tag particulier et se trouvant dans l'inventaire de l'entité spécifiée
+     * @param sTag
+     * @param idEntity
+     * @param n
+     * @returns {null|*}
+     */
     findItemTag (sTag, idEntity, n = 0) {
         const oEntity = this.getEntity(idEntity);
         const oContainer = oEntity.inventory;
@@ -473,101 +350,29 @@ class MUDEngine {
         return null;
     }
 
+//       _               _    _
+//   ___| |__   ___  ___| | _(_)_ __   __ _ ___
+//  / __| '_ \ / _ \/ __| |/ / | '_ \ / _` / __|
+// | (__| | | |  __/ (__|   <| | | | | (_| \__ \
+//  \___|_| |_|\___|\___|_|\_\_|_| |_|\__, |___/
+//                                    |___/
+
     /**
-     * Ajoute un objet dans l'inventaire de l'entity
-     * @param idEntity {string} identifiant de l'entité qui effectue l'action
-     * @param idItem {string} identifiant de l'objet à ramasser
-     * @param count {number} nombre d'exemplaire à prendre
+     * Effectue la vérification du paramètre, pour voir si c'est une direction valide
+     * si la direction n'est pas valide, notifie le joueur de l'erreur.
+     * @param idPlayer
+     * @param sDirection
      */
-    takeItem (idEntity, idItem, count = Infinity) {
-        if (count < 1) {
-            return null;
-        }
-        const oEntity = this.getEntity(idEntity);
-        const oItem = this.getEntity(idItem);
-        if (oEntity.inventory) {
-            // l'entité bénéficiaire a bienun inventaire
-            const oInventory = oEntity.inventory;
-            if (oItem.blueprint.stackable && oItem.stack > count) {
-                // l'item qu'on veut déposer est stackable
-                // recherche une éventuelle pile d'objet du meme blueprint
-                const idPile = this.findItemStack(oItem, oInventory);
-                if (idPile) {
-                    // une pile du même type d'objet existe déja dans l'inventaire
-                    const oInvItem = this.getEntity(idPile);
-                    // additionner les piles
-                    if (oItem.stack > count) {
-                        // on ne veut qu'une partie de la pile
-                        oItem.stack -= count;
-                        oInvItem.stack += count;
-                    } else {
-                        // on prend tout
-                        oInvItem.stack += oItem.stack;
-                        this.destroyEntity(idItem);
-                    }
-                    return;
-                } else {
-                    // aucune pile du même type déja dans l'inv.
-                    // il faut créer notre propre pile
-                    // créer un clone de la pile d'origin
-                    const oClone = this.cloneEntity(oItem);
-                    this.setEntityLocation(oClone.id, idEntity);
-                    // ajuster les piles
-                    oItem.stack -= count;
-                    oClone.stack = count;
-                    oInventory[oClone.id] = this._localIdRegistry[idEntity].inv.getId();
-                    return;
-                }
-            }
-            // obtenir local id
-            oInventory[idItem] = this._localIdRegistry[idEntity].inv.getId();
-            if (this.isRoomExist(oItem.location)) {
-                // l'objet était dans une pièce
-                this.removeRoomEntity(oItem.location, idItem);
-            } else if (this.isEntityExist(oItem.location)) {
-                // l'entité était dans l'inventaire d'une entité
-                this.removeInventoryEntity(oItem.location, idItem);
-            }
+    checkDirection (idPlayer, sDirection) {
+        if (!this.isDirection(sDirection)) {
+            this.notifyPlayerFailure(idPlayer, 'directions.invalid', sDirection);
+            return false;
+        } else {
+            return true;
         }
     }
 
-    /**
-     * Retire un objet de l'inventaire
-     * @param idEntity {string} identifiant de l'entité qui possède l'inventaire
-     * @param idItem {string} identifiant de l'item
-     * @param count {number} pour les objects empilable on peut spécifier une quantité d'exemplaire
-     * @returns {null|*} objet nouvellement retiré
-     */
-    dropItem (idEntity, idItem, count = Infinity) {
-        if (count < 1) {
-            return null;
-        }
-        const oEntity = this.getEntity(idEntity);
-        const oItem = this.getEntity(idItem);
-        if (oEntity.inventory) {
-            const oInventory = oEntity.inventory;
-            // chercher si l'item est bien dans l'inventaire
 
-            if (idItem in oInventory) {
-                // est ce un objet empilable ?
-                if (oItem.blueprint.stackable && count < oItem.stack) {
-                    // réduire la pile
-                    // créer un nouvel objet
-                    const oClone = this.cloneEntity(oItem);
-                    // ajuster les stack
-                    oClone.stack = count;
-                    oItem.stack -= count;
-                    return oClone;
-                } else {
-                    // l'item n'est pas stackable... c'est plus simple
-                    // ou bien il est stackable mais on enleve toute la pile
-                    delete oInventory[idItem];
-                    return oItem;
-                }
-            }
-        }
-        return null;
-    }
 
 //  ____                                         _   _  __
 // |  _ \  ___   ___  _ __ ___    __ _ _ __   __| | | |/ /___ _   _ ___
@@ -578,48 +383,43 @@ class MUDEngine {
 
     /**
      * Renvoie le code technique d'une issue secrete
-     * @param idRoom {string} identifiant dans la pièce ou se trouve l'issue
+     * permet principalement d'attribuer un identifiant à un passage secret précis pour déterminer
+     * quels sont les joueurs qui l'ont découvert.
+     * @param idRoom {string} identifiant dans la pièce ou se trouve l'issue secrete
      * @param sDirection {string} direction
      * @returns {string}
      */
     getSecretId (idRoom, sDirection) {
+        sDirection = this.getValidDirection(sDirection);
         return idRoom + '::' + sDirection;
     }
 
-    isRoomExist (idRoom) {
-        return idRoom in this._state.rooms;
-    }
-
-    isEntityExist (idEntity) {
-        return idEntity in this._state.entities;
-    }
-
     getDoor (idRoom, sDirection) {
+        sDirection = this.getValidDirection(sDirection);
         const oRoom = this.getRoom(idRoom);
         return oRoom.nav[sDirection];
     }
 
     /**
-     * indique si le joueur a été détecté la direction donnée dans la pièce ou il se trouve
+     * indique si le joueur a été détecté la direction donnée une porte secrète, dans la pièce ou il se trouve.
      * @param idPlayer {string} identifiant joueur
      * @param sDirection {string} direction
-     * @returns {boolean}
+     * @returns {boolean} true = la porte dans la direction donnée est bien secrète mais le joueur l'a déja repéré
      */
     hasPlayerSpottedDoor (idPlayer, sDirection) {
         const oPlayer = this.getEntity(idPlayer);
         return this.getSecretId(oPlayer.location, sDirection) in oPlayer.spotted;
     }
 
-    setPlayerDoorSpotted (idPlayer, sDirection, value) {
-        const oPlayer = this.getEntity(idPlayer);
-        const sId = this.getSecretId(oPlayer.location, sDirection);
-        if (value) {
-            oPlayer.spotted[sId] = true;
-        } else if (this.hasPlayerSpottedDoor(idPlayer, sDirection)) {
-            delete oPlayer.spotted[sId];
-        }
-    }
-
+    /**
+     * renvoie true si la porte spécifiée est secrete.
+     * c'est la caractéristique native de la porte qui est consultée ici.
+     * le résultat de la fonction n'est pas influencé par les capacité de détection ou de repérage d'un joueur
+     * ou le fait que cette porte a déjà  été découverte.
+     * @param idRoom {string} identifiant de la pièce
+     * @param sDirection {string} direction de la porte
+     * @returns {boolean} true = la porte est secrète
+     */
     isDoorSecret (idRoom, sDirection) {
         const oDoor = this.getDoor(idRoom, sDirection);
         if (oDoor) {
@@ -682,6 +482,345 @@ class MUDEngine {
         return !!oDoor && ('lock' in oDoor) ? oDoor.lock : null;
     }
 
+//                  _        _   _
+//  _ __ ___  _   _| |_ __ _| |_(_) ___  _ __  ___
+// | '_ ` _ \| | | | __/ _` | __| |/ _ \| '_ \/ __|
+// | | | | | | |_| | || (_| | |_| | (_) | | | \__ \
+// |_| |_| |_|\__,_|\__\__,_|\__|_|\___/|_| |_|___/
+//
+
+    set state (value) {
+        value.entities = {};
+        value.roomEntityStorage = {};
+        this._state = value;
+    }
+
+    /**
+     * Création d'un nouveau personnage joueur
+     * @param id {string} identifiant externe (désigné par l'appli cliente) qui sera transformé en identifiant internet au mud
+     * @param sName {string}
+     * @param sLocation {string} identifiant de la pièce ou sera localisé l'entité
+     * @returns {string|null} identifiant joueur
+     */
+    createPlayerEntity(id, sName, sLocation) {
+        // verifier si le nom est valide
+        if (!sName.match(/^\S{2,20}$/)) {
+            return null;
+        }
+        const idPlayer = this.getPlayerId(id);
+        const oPlayer = this.getEntities()[idPlayer] = {
+            type: 'player',
+            id,
+            blueprint: {
+                type: 'player'
+            },
+            desc: [
+                'Description par défaut'
+            ],
+            name: sName,
+            location: '', // localisation (pièce) du joueur
+            sector: '', // indique le secteur dans lequel le joueur est.
+            inventory: {},
+            skills: {
+                spot: 5,
+                picklock: 5
+            },
+            spotted: {},
+            data: {}
+        };
+        this._localIdRegistry[idPlayer] = {
+            inv: new DisposableIdRegistry()
+        };
+        this.setEntityLocation(idPlayer, sLocation);
+        const oRoom = this.getRoom(sLocation);
+        this.notifyPlayer(idPlayer, 'events.youAreIn', oRoom.name);
+        this.notifyRoom(sLocation, idPlayer, 'events.roomPlayerArrived', oPlayer.name);
+        this.notifyAdmin('new player %s spawned at %s', oPlayer.name, oRoom.name);
+        return idPlayer;
+    }
+
+    /**
+     * Clonage d'une entité
+     * @param oEntity {object} instance de l'entité source
+     * @returns {object}
+     */
+    cloneEntity (oEntity) {
+        ++this._lastId;
+        const idEntity = 'entity::' + this._lastId;
+        const oBlueprint = oEntity.blueprint;
+        const oClone = this.getEntities()[idEntity] = {
+            ...oEntity,
+            id: idEntity,
+            inventory: {},
+            location: ''
+        };
+        if (oBlueprint.inventory) {
+            this._localIdRegistry[idEntity] = {
+                inv: new DisposableIdRegistry()
+            };
+        }
+        this.notifyAdmin('clone entity %s', oClone.name);
+        return oClone;
+    }
+
+    /**
+     * Création d'une entité
+     * @param sBlueprint {string} blueprint d'après lequel on construit l'entité
+     * @param sLocation {string} localisation initiale
+     * @param nCount {number} nombre d'exemplaire pour le cas des objets empilables (flèche, or, potions...}
+     * @returns {string} identifiant de l'entité créer
+     */
+    createEntity (sBlueprint, sLocation, nCount = 1) {
+        ++this._lastId;
+        const idEntity = 'entity::' + this._lastId;
+        const oBlueprint = this.getBlueprint(sBlueprint);
+        const oEntity = {
+            id: idEntity,
+            blueprint: oBlueprint,
+            tag: oBlueprint.tag,
+            location: '',
+            name: oBlueprint.name,
+            desc: oBlueprint.desc
+        };
+        switch (oBlueprint.type) {
+            case 'item':
+                Object.assign(oEntity, {
+                    stack: nCount,
+                    buc: oBlueprint.buc,
+                    identified: oBlueprint.identified,
+                    inventory: oBlueprint.inventory ? {} : null,
+                    name: oBlueprint.identified ? oBlueprint.name : oBlueprint.uname,
+                    desc: oBlueprint.identified ? oBlueprint.desc : oBlueprint.udesc
+                });
+                break;
+        }
+        this.getEntities()[idEntity] = oEntity;
+        if (oBlueprint.inventory) {
+            this._localIdRegistry[idEntity] = {
+                inv: new DisposableIdRegistry('c')
+            };
+        }
+        if (sLocation) {
+            this.setEntityLocation(idEntity, sLocation);
+        }
+        return idEntity;
+    }
+
+    /**
+     * destruction d'une entité
+     * @param idEntity {string} entité à détruire
+     */
+    destroyEntity (idEntity) {
+        const oEntities = this.getEntities();
+        if (idEntity in oEntities) {
+            const oEntity = oEntities[idEntity];
+            // détruire les objets qu'il transportait
+            if (oEntity.inventory) {
+                Object.keys(oEntity.inventory).forEach(id => {
+                    this.destroyEntity(id);
+                });
+            }
+            const idRoom = this.getEntity(idEntity).location;
+            this.removeRoomEntity(idRoom, idEntity);
+            if (idEntity in this._localIdRegistry) {
+                delete this._localIdRegistry[idEntity];
+            }
+            delete oEntities[idEntity];
+        }
+    }
+
+    /**
+     * Ajoute un objet dans l'inventaire de l'entity
+     * @param idEntity {string} identifiant de l'entité qui effectue l'action
+     * @param idItem {string} identifiant de l'objet à ramasser
+     * @param count {number} nombre d'exemplaire à prendre
+     */
+    takeItem (idEntity, idItem, count = Infinity) {
+        if (count < 1) {
+            return null;
+        }
+        const oEntity = this.getEntity(idEntity);
+        const oItem = this.getEntity(idItem);
+        if (oEntity.inventory) {
+            // l'entité bénéficiaire a bienun inventaire
+            const oInventory = oEntity.inventory;
+            if (oItem.blueprint.stackable && oItem.stack > count) {
+                // l'item qu'on veut déposer est stackable
+                // recherche une éventuelle pile d'objet du meme blueprint
+                const idPile = this.findItemStack(oItem, oInventory);
+                if (idPile) {
+                    // une pile du même type d'objet existe déja dans l'inventaire
+                    const oInvItem = this.getEntity(idPile);
+                    // additionner les piles
+                    if (oItem.stack > count) {
+                        // on ne veut qu'une partie de la pile
+                        oItem.stack -= count;
+                        oInvItem.stack += count;
+                    } else {
+                        // on prend tout
+                        oInvItem.stack += oItem.stack;
+                        this.destroyEntity(idItem);
+                    }
+                    return oInvItem;
+                } else {
+                    // aucune pile du même type déja dans l'inv.
+                    // il faut créer notre propre pile
+                    // créer un clone de la pile d'origin
+                    const oClone = this.cloneEntity(oItem);
+                    this.setEntityLocation(oClone.id, idEntity);
+                    // ajuster les piles
+                    oItem.stack -= count;
+                    oClone.stack = count;
+                    oInventory[oClone.id] = this._localIdRegistry[idEntity].inv.getId();
+                    return oClone;
+                }
+            }
+            // obtenir local id
+            oInventory[idItem] = this._localIdRegistry[idEntity].inv.getId();
+            if (this.isRoomExist(oItem.location)) {
+                // l'objet était dans une pièce
+                this.removeRoomEntity(oItem.location, idItem);
+            } else if (this.isEntityExist(oItem.location)) {
+                // l'entité était dans l'inventaire d'une entité
+                this.removeInventoryEntity(oItem.location, idItem);
+            }
+        }
+    }
+
+    /**
+     * Retire un objet de l'inventaire
+     * @param idEntity {string} identifiant de l'entité qui possède l'inventaire
+     * @param idItem {string} identifiant de l'item
+     * @param count {number} pour les objects empilable on peut spécifier une quantité d'exemplaire
+     * @returns {null|*} objet nouvellement retiré
+     */
+    dropItem (idEntity, idItem, count = Infinity) {
+        if (count < 1) {
+            return null;
+        }
+        const oEntity = this.getEntity(idEntity);
+        const oItem = this.getEntity(idItem);
+        if (oEntity.inventory) {
+            const oInventory = oEntity.inventory;
+            // chercher si l'item est bien dans l'inventaire
+
+            if (idItem in oInventory) {
+                // est ce un objet empilable ?
+                if (oItem.blueprint.stackable && count < oItem.stack) {
+                    // réduire la pile
+                    // créer un nouvel objet
+                    const oClone = this.cloneEntity(oItem);
+                    // ajuster les stack
+                    oClone.stack = count;
+                    oItem.stack -= count;
+                    return oClone;
+                } else {
+                    // l'item n'est pas stackable... c'est plus simple
+                    // ou bien il est stackable mais on enleve toute la pile
+                    delete oInventory[idItem];
+                    return oItem;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Ajoute une entity au registre des entités de la pièce.
+     * attribue un numéro d'identification local.
+     * @param idRoom {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
+    addRoomEntity (idRoom, idEntity) {
+        // déterminer le type d'une entité
+        const oEntity = this.getEntity(idEntity);
+        const sType = oEntity.blueprint.type;
+        const sMiniType = sType.charAt(0).toLowerCase();
+        const oRES = this.getRoomEntityStorage(idRoom);
+        oRES[idEntity] = this._localIdRegistry[idRoom][sMiniType].getId();
+        oEntity.location = idRoom;
+    }
+
+    /**
+     * Ajoute une entité à l'inventaire, et lui associe un identifiant local
+     * @param idContainer {string}
+     * @param idItem {string}
+     */
+    addInventoryEntity (idContainer, idItem) {
+        const oEntity = this.getEntity(idItem);
+        const oContainer = this.getEntity(idContainer);
+        oContainer[idItem] = this._localIdRegistry[idContainer].inv.getId();
+        oEntity.location = idContainer;
+    }
+
+    /**
+     * Supprime une entité d'un container
+     * @param idContainer
+     * @param idItem
+     */
+    removeInventoryEntity (idContainer, idItem) {
+        const oContainer = this.getEntity(idContainer);
+        const lid = oContainer[idItem];
+        this._localIdRegistry[idContainer].inv.disposeId(lid);
+        delete oContainer[idItem];
+        const oItem = this.getEntity(idItem);
+        oItem.location = '';
+    }
+
+    /**
+     * Suprime une entity du registre des entités de la pièce
+     * @param idRoom {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
+    removeRoomEntity (idRoom, idEntity) {
+        const lid = this.getRoomEntityStorage(idRoom)[idEntity];
+        const sMiniType = lid.charAt(0).toLowerCase();
+        this._localIdRegistry[idRoom][sMiniType].disposeId(lid);
+        delete this.getRoomEntityStorage(idRoom)[idEntity];
+        const oEntity = this.getEntity(idEntity);
+        oEntity.location = '';
+    }
+
+    /**
+     * Ajoute l'id d'une porte cachée à la liste des portes cachées repérées par le joueur
+     * @param idPlayer {string} joueur
+     * @param sDirection {string} une direction valide
+     * @param value {boolean}
+     */
+    setPlayerDoorSpotted (idPlayer, sDirection, value) {
+        sDirection = this.getValidDirection(sDirection);
+        const oPlayer = this.getEntity(idPlayer);
+        const sId = this.getSecretId(oPlayer.location, sDirection);
+        if (value) {
+            oPlayer.spotted[sId] = true;
+        } else if (this.hasPlayerSpottedDoor(idPlayer, sDirection)) {
+            delete oPlayer.spotted[sId];
+        }
+    }
+
+    /**
+     * Change la localisation d'une entité
+     * @param idTo {string} identifiant pièce
+     * @param idEntity {string} identifiant entité
+     */
+    setEntityLocation (idEntity, idTo) {
+        const oEntity = this.getEntity(idEntity);
+        const idPrevLocation = oEntity.location;
+        if (this.isRoomExist(idPrevLocation)) {
+            this.removeRoomEntity(idPrevLocation, idEntity);
+        } else if (this.isEntityExist(idPrevLocation)) {
+            this.removeInventoryEntity(idPrevLocation, idEntity);
+        }
+        if (this.isRoomExist(idTo)) {
+            this.addRoomEntity(idTo, idEntity);
+        } else if (this.isEntityExist(idTo)) {
+            // on va stocker l'entité dans un inventaire
+            this.addInventoryEntity(idTo, idEntity);
+        } else {
+            throw new KeyNotFoundError(idTo, 'rooms/entites');
+        }
+    }
+
     /**
      * Verrouille/deverrouille la porte
      * la porte doit exister sinon aucun effet.
@@ -734,6 +873,39 @@ class MUDEngine {
     }
 
     /**
+     * Notifie au joueur qu'une action est couronnée de succés
+     * Ce message est utile pour les cas suivants :
+     * - l'action a fait intervenir un talent, et la difficulté a été surmontée.
+     * - l'action entrainera l'apparition de nouvelles options.
+     * @param idPlayer {string} identifiant joueur
+     * @param sEvent {string}
+     * @param params {string}
+     */
+    notifyPlayerSuccess (idPlayer, sEvent, ...params) {
+        const aModParams = this._mapParameters(params);
+        const sModEvent = this._mapParameters(sEvent);
+        const oPlayer = this.getEntity(idPlayer);
+        this._events.emit('player-event', { id: oPlayer.id, type: 'success', message: util.format(sModEvent, ...aModParams)});
+    }
+
+    /**
+     * Notifie au joueur qu'une action a échoué.
+     * Ce message est utile pour forcer le joueur à porter son attention sur le résultat de l'action
+     * Ce message est utile pour les cas suivants :
+     * - des actions qui font intervenir un talent, et qui ne passe pas le degrés de difficulté requis
+     * - des actions qui échouent car l'objet de l'action n'existe pas
+     * @param idPlayer {string} identifiant joueur
+     * @param sEvent {string}
+     * @param params {string}
+     */
+    notifyPlayerFailure (idPlayer, sEvent, ...params) {
+        const aModParams = this._mapParameters(params);
+        const sModEvent = this._mapParameters(sEvent);
+        const oPlayer = this.getEntity(idPlayer);
+        this._events.emit('player-event', { id: oPlayer.id, type: 'failure', message: util.format(sModEvent, ...aModParams)});
+    }
+
+    /**
      * Comme notify player, mais pour tous les autres joueurs de la pièce
      * @param idRoom {string} identifiant pièce
      * @param idPlayer {string} identifiant joueur
@@ -777,8 +949,8 @@ class MUDEngine {
      * @returns {string}
      */
     renderDoor (idRoom, sDirection, oDoorStatus) {
-        const sDirStr = this.getString('directions.v' + sDirection);
         const oDoor = this.getDoor(idRoom, sDirection);
+        const sDirStr = this.getString('directions.v' + sDirection);
         const oNextRoom = this.getRoom(oDoor.to);
         const a = [
             ' - [' + sDirection + ']',
@@ -814,7 +986,7 @@ class MUDEngine {
         const aOutput = [];
         // secteur
         // afficher les info du secteur : le joueur viens d'y pénétrer
-        const oSector = this._state.sectors[oRoom.sector];
+        const oSector = this.getSector(oRoom.sector);
         aOutput.push('{imp ' + oSector.name + '}', ...oSector.desc);
         return aOutput;
     }
@@ -869,7 +1041,7 @@ class MUDEngine {
         const aOutput = [];
         for (let { id, lid } of aItems) {
             const oItem = this.getEntity(id);
-            aOutput.push(' - [' + lid + '] ' + oItem.name);
+            aOutput.push(' - [' + lid + '] ' + oItem.name + (oItem.blueprint.stackable ? ' (x' + oItem.stack + ')' : ''));
         }
         if (aOutput.length > 0) {
             aOutput.unshift('{imp ' + this.getString('ui.objects') + '}');

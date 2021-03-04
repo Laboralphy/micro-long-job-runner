@@ -1,6 +1,6 @@
 const STRINGS = {
     "doorSearchSuccess": "Vous découvrez une porte secrete.",
-    "doorSearchFailed": "Vous ne découvrez rien de caché.",
+    "doorSearchFailure": "Vous ne découvrez rien de caché.",
     "doorSearchElsewhere": "Cherchez ailleurs, il y a déjà une issue visible ici."
 };
 
@@ -26,17 +26,23 @@ function help () {
 }
 
 function main ({ mud, pid }, sDirection) {
+    if (!mud.checkDirection(pid, sDirection)) {
+        return;
+    }
     const nSkill = mud.getPlayerSkill(pid, 'spot');
     const { valid, secret, visible, dcSearch } = mud.getPlayerDoorStatus(pid, sDirection);
     if (!valid) {
-        mud.notifyPlayer(pid, STRINGS.doorSearchFailed);
+        // ce n'est pas une direction valide
+        mud.notifyPlayer(pid, STRINGS.doorSearchFailure);
     }
     if (visible) {
         mud.notifyPlayer(pid, STRINGS.doorSearchElsewhere);
     }
     if (secret && nSkill >= dcSearch) {
         mud.setPlayerDoorSpotted(pid, sDirection, true);
-        mud.notifyPlayer(pid, STRINGS.doorSearchSuccess);
+        mud.notifyPlayerSuccess(pid, STRINGS.doorSearchSuccess);
+    } else {
+        mud.notifyPlayer(pid, STRINGS.doorSearchFailure);
     }
 }
 

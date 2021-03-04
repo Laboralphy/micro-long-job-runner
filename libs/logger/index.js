@@ -1,9 +1,28 @@
-const dateFormat = require('date-format');
-
 /**
  * simple logging class that writes on stdout
  */
 class Logger {
+
+    /**
+     * Date formatting utility
+     * @param date {Date}
+     */
+    dateFormat(date) {
+        function p(d, n) {
+            return d.toString().padStart(n, '0');
+        }
+        const sDate = [
+          p(date.getFullYear(), 4),
+          p(date.getMonth() + 1, 2),
+          p(date.getDate(), 2)
+        ].join('-');
+        const sTime = [
+          p(date.getHours(), 2),
+          p(date.getMinutes(), 2),
+          p(date.getSeconds(), 2)
+        ].join(':');
+        return sDate + ' ' + sTime;
+    }
 
     /**
      * Transforms level and date into a prefix displayable string
@@ -13,7 +32,7 @@ class Logger {
      */
     formatString(level, date) {
         const packet = [
-            '[' + dateFormat(dateFormat.ISO8601_FORMAT, date) + ']',
+            '[' + this.dateFormat(date) + ']',
             '[' + level + ']'
         ];
         return packet.join(' ');

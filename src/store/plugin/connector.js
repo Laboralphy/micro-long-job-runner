@@ -111,8 +111,12 @@ class CommandRepository {
         });
     }
 
-    _send (sCommand, ...aArgs) {
-        return this._connector.socket.emit(sCommand, aArgs);
+    async _send (sCommand, ...aArgs) {
+        if (this._connector.connected) {
+            return this._connector.socket.emit(sCommand, aArgs);
+        } else {
+            await this._store.termPrint('#system', '{neg Not connected. Use "login {i your_name} " to connect.');
+        }
     }
 
     /**

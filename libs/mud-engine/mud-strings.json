@@ -23,7 +23,8 @@
     "vne": "vers le nord-est",
     "vnw": "vers le nord-ouest",
     "vse": "vers le sud-est",
-    "vsw": "vers le sud-ouest"
+    "vsw": "vers le sud-ouest",
+    "invalid": "Direction invalide : \"%s\" - Les directions valides sont : n, e, w, s, ne, nw, se, sw."
   },
   "events": {
     "youAreIn": "Vous voici dans : %s."
