@@ -1,4 +1,4 @@
-const MUDEngine = require('../server/services/mud/MUDEngine');
+const MUDEngine = require('../libs/mud-engine');
 
 function createState1 () {
     return {
@@ -6,11 +6,13 @@ function createState1 () {
         blueprints: {
             "blueprint::a1": {
                 "type": "item",
-                    "subtype": "misc",
-                    "name": "Objet diver 1",
-                    "desc": [
+                "subtype": "misc",
+                "name": "Objet diver 1",
+                "desc": [
                     "Cet objet n'a rien de particulier"
                 ],
+                "uname": "",
+                "udesc": [],
                 "weight": 1,
                 "stackable": false,
                 "identified": true,
@@ -25,6 +27,8 @@ function createState1 () {
                 "desc": [
                     "Cet objet n'a rien de particulier"
                 ],
+                "uname": "",
+                "udesc": [],
                 "weight": 0.0085,
                 "stackable": true,
                 "identified": true,
@@ -36,7 +40,7 @@ function createState1 () {
         sectors: {
             "sector::001": {
                 name: 'sector 1',
-                    desc: [
+                desc: [
                     'the sector 1'
                 ]
             }
@@ -44,12 +48,14 @@ function createState1 () {
         rooms: {
             "room::r1": {
                 name: 'room1',
-                    sector: 'sector::001',
-                    desc: [
+                sector: 'sector::001',
+                desc: [
                     'the room 1'
                 ],
-                    nav: {
-                    s: 'rooms::r2'
+                nav: {
+                     s: {
+                         to: 'rooms::r2'
+                     }
                 },
                 defaultEntities: [
                     {
@@ -59,12 +65,14 @@ function createState1 () {
             },
             "room::r2": {
                 name: 'room2',
-                    sector: 'sector::001',
-                    desc: [
+                sector: 'sector::001',
+                desc: [
                     'the room 2'
                 ],
-                    nav: {
-                    n: 'rooms::r1'
+                nav: {
+                    n: {
+                        to: 'rooms::r1'
+                    }
                 }
             }
         }
@@ -84,12 +92,12 @@ describe('#MUDEngine', function () {
             m.state = createState1();
             const pid = m.createNewPlayer('x1', 'test', 'room::r1');
             const p = m.getEntity(pid);
-            expect(p.inventory.length).toBe(0);
+            expect(Object.keys(p.inventory).length).toBe(0);
             const oItem = m.getRoomLocalEntity('room::r1', 'i1');
             expect(m.getRoomEntityStorage('room::r1')[oItem.id]).toBeDefined();
             m.takeItem(pid, oItem.id);
-            expect(p.inventory.length).toBe(1);
-            expect(p.inventory[0].id).toBe(oItem.id);
+            expect(Object.keys(p.inventory).length).toBe(1);
+            expect(Object.keys(p.inventory)[0]).toBe(oItem.id);
             expect(m.getRoomLocalEntity('room::r1', 'i1')).toBeNull();
         });
         it('rammasser l\'objet i1 puis le poser', function() {
@@ -116,7 +124,7 @@ describe('#MUDEngine', function () {
             // la pile au sol ne doit contenir que 13 pièce
             const oPileSol = m.getEntity(idPileSol);
             expect(oPileSol.stack).toBe(13);
-            const idPileInv = p.inventory[0].id
+            const idPileInv = Object.keys(p.inventory)[0]
             const oPileInv = m.getEntity(idPileInv);
             expect(oPileInv.stack).toBe(7);
             // on fait tomber 3 pièce
@@ -124,5 +132,17 @@ describe('#MUDEngine', function () {
             expect(oPileInv.stack).toBe(4);
             expect(oPile3.stack).toBe(3);
         });
+    });
+
+    describe('moving', function () {
+        it('check if we can move from a room to another', function() {
+            const m = new MUDEngine();
+            m.state = createState1();
+            const pid = m.createNewPlayer('x1', 'test', 'room::r1');
+            expect(m.getEntity(pid).location).toBe('room::r1');
+            m.setEntityLocation(pid, 'room::r2');
+            expect(m.getEntity(pid).location).toBe('room::r2');
+        });
+
     });
 });

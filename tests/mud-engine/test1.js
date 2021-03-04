@@ -1,4 +1,4 @@
-const MUDEngine = require('../../server/services/mud/MUDEngine');
+const MUDEngine = require('../../libs/mud-engine');
 
 const m = new MUDEngine();
 m._state.entities['player::111'] = {

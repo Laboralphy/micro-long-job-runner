@@ -1,0 +1,53 @@
+{
+  "directions": {
+    "n": "nord",
+    "e": "est",
+    "w": "ouest",
+    "s": "sud",
+    "ne": "nord-est",
+    "nw": "nord-ouest",
+    "se": "sud-est",
+    "sw": "sud-ouest",
+    "an": "au nord",
+    "ae": "à l'est",
+    "aw": "à l'ouest",
+    "as": "au sud",
+    "ane": "au nord-est",
+    "anw": "au nord-ouest",
+    "ase": "au sud-est",
+    "asw": "au sud-ouest",
+    "vn": "vers le nord",
+    "ve": "vers l'est",
+    "vw": "vers l'ouest",
+    "vs": "vers le sud",
+    "vne": "vers le nord-est",
+    "vnw": "vers le nord-ouest",
+    "vse": "vers le sud-est",
+    "vsw": "vers le sud-ouest"
+  },
+  "events": {
+    "youAreIn": "Vous voici dans : %s."
+  },
+  "nav": {
+    "doorLocked": "verrouillée",
+    "doorUnlockable": "vous avez la clé",
+    "doorCode": "par code secret",
+    "doorLockable": "déverrouillée",
+    "defaultDesc": "Vers : %s"
+  },
+  "errors": {
+    "invalidPlayerName": "Ce nom est invalide. Un nom doit comporter entre 2 et 20 caractères sans espace."
+  },
+  "ui": {
+    "exits": "Issues",
+    "objects": "Objets",
+    "creatures": "Personnages",
+    "players": "Joueurs",
+    "name": "Nom",
+    "type": "Type",
+    "weight": "Poids",
+    "blessed": "béni",
+    "cursed": "maudit",
+    "unidentified": "non-identifié"
+  }
+}

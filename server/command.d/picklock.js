@@ -1,3 +1,13 @@
+const STRINGS = {
+    "doorInvalid": "Il n'y a pas de porte par ici.",
+    "doorNotLocked": "Il n'y a pas de serrure sur cette porte.",
+    "doorHasCode": "Cette porte est verrouillée par un code secret.",
+    "picklockSuccess": "Vous réussissez à crocheter la serrure.",
+    "picklockFailed": "Vous ne parvenez pas à crocheter la serrure.",
+    "roomPicklockSuccess": "%s vient de crocheter une serrure sur la porte située %s.",
+    "roomPicklockFailed": "%s ne parvient pas à crocheter une serrure sur la porte située %s."
+};
+
 const DIRECTIONS = ['n', 'e', 'w', 's', 'ne', 'nw', 'sw', 'se'];
 
 function help () {
@@ -35,29 +45,29 @@ function main(context, sDirectionOrEntity) {
         const {valid, locked, dcPicklock, code} = mud.getPlayerDoorStatus(idPlayer, sDirection);
         if (!valid) {
             // porte non valide !
-            mud.notifyPlayer(idPlayer, 'events.doorInvalid');
+            mud.notifyPlayer(idPlayer, STRINGS.doorInvalid);
             return;
         }
         if (!locked) {
             // porte non verrouillée
-            mud.notifyPlayer(idPlayer, 'events.doorNotLocked');
+            mud.notifyPlayer(idPlayer, STRINGS.doorNotLocked);
             return;
         }
         if (code) {
             // la porte possède un code
-            mud.notifyPlayer(idPlayer, 'events.doorHasCode');
+            mud.notifyPlayer(idPlayer, STRINGS.doorHasCode);
             return;
         }
         // récupérer le talent du joueur
         const nSkill = mud.getPlayerSkill(idPlayer, 'picklock');
         if (nSkill >= dcPicklock) {
             // on crochète
-            mud.notifyPlayer(idPlayer, 'events.picklockSuccess');
-            mud.notifyRoom(idRoom, idPlayer, 'events.roomPicklockSuccess', oPlayer.name, 'directions.v' + sDirection);
+            mud.notifyPlayer(idPlayer, STRINGS.picklockSuccess);
+            mud.notifyRoom(idRoom, idPlayer, STRINGS.roomPicklockSuccess, oPlayer.name, 'directions.v' + sDirection);
             mud.setDoorLocked(idRoom, sDirection, false);
         } else {
-            mud.notifyPlayer(idPlayer, 'events.picklockFailed');
-            mud.notifyRoom(idRoom, idPlayer, 'events.roomPicklockFailed', oPlayer.name, 'directions.v' + sDirection);
+            mud.notifyPlayer(idPlayer, STRINGS.picklockFailed);
+            mud.notifyRoom(idRoom, idPlayer, STRINGS.roomPicklockFailed, oPlayer.name, 'directions.v' + sDirection);
         }
     }
 }

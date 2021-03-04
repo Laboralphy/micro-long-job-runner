@@ -1,0 +1,321 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "http://example.com/example.json",
+  "type": "object",
+  "title": "Pièce",
+  "description": "Structure de définition d'une pièce.",
+  "default": {},
+  "examples": [
+    {
+      "name": "Couloir 3000 sud",
+      "sector": "sector::0001",
+      "desc": [
+        "Le couloir est faiblement éclairé par une seule lampe située au nord, et une porte s'ouvre sur le mur est.",
+        "Au sud le couloir plonge dans l'obscurité et on ne distingue absolument rien au delà de quelques mètres."
+      ],
+      "nav": {
+        "n": {
+          "to": "room::b3011",
+          "desc": "Une porte cachée encastrée dans le mur d'une impasse",
+          "secret": {
+            "difficulty": 1
+          }
+        },
+        "w": {
+          "to": "room::b3011",
+          "desc": "Une porte menant au bureau 3011",
+          "lock": {
+            "difficulty": 3,
+            "key": "k3011",
+            "locked": true,
+            "code": "1234",
+            "discardKey": true
+          }
+        }
+      }
+    }
+  ],
+  "required": [
+    "name",
+    "sector",
+    "desc",
+    "nav"
+  ],
+  "definitions": {
+    "navigation": {
+      "type": "object",
+      "title": "Une issue",
+      "description": "Structure d'une issue possible accrochée à une pièce. Chaque pièce peut avoir des issues correspondant aux points cardinaux.",
+      "default": {},
+      "examples": [
+        {
+          "to": "room::b3011",
+          "desc": "Une porte menant au bureau 3011",
+          "secret": {
+            "difficulty": 1
+          },
+          "lock": {
+            "difficulty": 3,
+            "key": "k3011",
+            "locked": true,
+            "code": "1234",
+            "discardKey": true
+          }
+        }
+      ],
+      "required": [
+        "to"
+      ],
+      "properties": {
+        "to": {
+          "type": "string",
+          "title": "Référence pièce de destination",
+          "description": "Un identifiant de pièce vers laquelle on se rend quand on emprunte l'issue.",
+          "default": "",
+          "examples": [
+            "room::b3011"
+          ]
+        },
+        "desc": {
+          "type": "string",
+          "title": "Description",
+          "description": "Une seule ligne de texte pour décrire l'issue.",
+          "default": "",
+          "examples": [
+            "Une porte menant au bureau 3011"
+          ]
+        },
+        "secret": {
+          "type": "object",
+          "title": "Propriétés de passage secret",
+          "description": "La présence de cette structure transforme l'issue en passage secret, avec une certaine difficulté pour la découvrir.",
+          "default": {},
+          "examples": [
+            {
+              "difficulty": 1
+            }
+          ],
+          "required": [
+            "difficulty"
+          ],
+          "properties": {
+            "difficulty": {
+              "$id": "#/properties/nav/properties/w/properties/secret/properties/difficulty",
+              "type": "integer",
+              "title": "Difficulté",
+              "description": "Représente la difficulté qu'il faut surmonter pour découvrir cette issue secrète",
+              "default": 0,
+              "examples": [
+                1
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "lock": {
+          "type": "object",
+          "title": "Verrou",
+          "description": "Une structure permettant de définir un verrou sur la porte",
+          "default": {},
+          "examples": [
+            {
+              "difficulty": 3,
+              "key": "k3011",
+              "locked": true,
+              "code": "1234",
+              "discardKey": true
+            }
+          ],
+          "required": [
+            "locked"
+          ],
+          "properties": {
+            "difficulty": {
+              "title": "Difficulté",
+              "description": "Une valeur de la difficulté à surmonter pour crocheter la serrure.",
+              "type": "integer",
+              "default": 0,
+              "examples": [
+                3
+              ]
+            },
+            "key": {
+              "type": "string",
+              "title": "Identifiant clé",
+              "description": "Le tag de la clé nécessaire pour déverrouiller la serrure.",
+              "default": "",
+              "examples": [
+                "k3011"
+              ]
+            },
+            "locked": {
+              "type": "boolean",
+              "title": "état du verrou",
+              "description": "True = ouvert, false = fermé",
+              "default": false,
+              "examples": [
+                true
+              ]
+            },
+            "code": {
+              "type": "string",
+              "title": "Code d'accès",
+              "description": "Le code ou mot de passe à fournir pour pouvoir passer",
+              "default": "",
+              "examples": [
+                "1234"
+              ]
+            },
+            "discardKey": {
+              "type": "boolean",
+              "title": "Suppression auto de la clé",
+              "description": "Le fait de déverrouiller la porte supprime la clé de l'inventaire du personnage ?",
+              "default": false,
+              "examples": [
+                true
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "name": {
+      "$id": "#/properties/name",
+      "type": "string",
+      "title": "Nom",
+      "description": "Le nom de la pièce est affiché.",
+      "default": "",
+      "examples": [
+        "Couloir 3000 sud"
+      ]
+    },
+    "sector": {
+      "$id": "#/properties/sector",
+      "type": "string",
+      "title": "Secteur",
+      "description": "Un identiant de secteur pour situer la pièce dans un ensemble plus grand. (l'étage d'un immeuble par exemple)",
+      "default": "",
+      "examples": [
+        "sector::0001"
+      ]
+    },
+    "desc": {
+      "$id": "#/properties/desc",
+      "type": "array",
+      "title": "Description",
+      "description": "La description est affichée sur plusieurs lignes.",
+      "default": [],
+      "examples": [
+        [
+          "Le couloir est faiblement éclairé par une seule lampe située au nord, et une porte s'ouvre sur le mur est.",
+          "Au sud le couloir plonge dans l'obscurité et on ne distingue absolument rien au delà de quelques mètres."
+        ]
+      ],
+      "additionalItems": true,
+      "items": {
+        "$id": "#/properties/desc/items",
+        "type": "string"
+      }
+    },
+    "nav": {
+      "$id": "#/properties/nav",
+      "type": "object",
+      "title": "Issues",
+      "description": "Ensemble des issue qu'il est possible d'emprunter pour aller dans une autre pièce.",
+      "default": {},
+      "properties": {
+        "n": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/n"
+        },
+        "e": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/e"
+        },
+        "w": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/w"
+        },
+        "s": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/s"
+        },
+        "ne": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/ne"
+        },
+        "nw": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/nw"
+        },
+        "se": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/se"
+        },
+        "sw": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/sw"
+        },
+        "u": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/u"
+        },
+        "d": {
+          "$ref": "#/definitions/navigation",
+          "$id": "#/properties/nav/properties/d"
+        }
+      },
+      "additionalProperties": false
+    },
+    "defaultEntities": {
+      "$id": "#/properties/defaultEntities",
+      "type": "array",
+      "title": "Entités par défaut",
+      "description": "Liste des entité par défaut à faire spawner lors de la création de la pièce.",
+      "default": [],
+      "examples": [
+        [
+          {
+            "blueprint": "blueprint::crea0001"
+          }
+        ]
+      ],
+      "additionalItems": true,
+      "items": {
+        "$id": "#/properties/defaultEntities/items",
+        "type": "object",
+        "title": "Entité par défault",
+        "required": [
+          "blueprint"
+        ],
+        "properties": {
+          "blueprint": {
+            "$id": "#/properties/defaultEntities/blueprint",
+            "type": "string",
+            "title": "Blueprint de l'entité"
+          },
+          "stack": {
+            "$id": "#/properties/defaultEntities/stack",
+            "type": "integer",
+            "title": "Taille du stack",
+            "description": "si l'entité est un objet empilable, on indique ici le nombre d'exemplaires de la pile"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "data": {
+      "$id": "#/properties/data",
+      "type": "object",
+      "title": "Données",
+      "description": "Objet libre permettant la définition de données supplémentaires.",
+      "default": {},
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
