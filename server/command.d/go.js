@@ -38,6 +38,7 @@ function main ({ mud, print, command, uid, pid }, sDirection) {
         mud.notifyRoom(oPlayer.location, pid, STRINGS.roomPlayerLeft, oPlayer.name, sToDir);
         mud.setEntityLocation(pid, destination);
         mud.notifyRoom(oPlayer.location, pid, STRINGS.roomPlayerArrived, oPlayer.name);
+        mud.notifyMapChange(pid);
         mud
           .renderPlayerVisualReport(pid)
           .forEach(s => print(s));

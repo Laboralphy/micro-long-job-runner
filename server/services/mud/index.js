@@ -19,6 +19,9 @@ class ServiceMUD extends ServiceAbstract {
         m.events.on('admin-event', ({ message }) => {
             console.log('[admin]', message);
         });
+        m.events.on('map-change-event', ({ id, map }) => {
+            this.socketEmit(id, 'UI_UPADTE', { section: 'map', map });
+        });
         this._scriptorium = sc;
         this._mud = m;
         const SCRIPT_LOADED_STR = '[scripts] scripts loaded';

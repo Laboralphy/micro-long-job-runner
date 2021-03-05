@@ -109,6 +109,15 @@ class CommandRepository {
         this._connector.events.on('TERM_CLEAR', async ({screen}) => {
             await this._store.dispatch('screens', 'clearScreen', { screen });
         });
+
+        this._connector.events.on('UI_UPDATE', async payload => {
+            switch (payload.section) {
+                case 'map':
+                    await this._store.dispatch('ui', 'updateMap', {map: payload.map});
+                    break;
+            }
+
+        });
     }
 
     async _send (sCommand, ...aArgs) {

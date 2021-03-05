@@ -872,6 +872,14 @@ class MUDEngine {
         this._events.emit('player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
     }
 
+    notifyMapChange (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        // récuperer les infos du joeur (position)
+        // récupérer les infos du monde / de l'étage
+        const map = {{{{{{}}}}}};
+        this._events.emit('map-change-event', { id: oPlayer.id, map: { xxxxx }});
+    }
+
     /**
      * Notifie au joueur qu'une action est couronnée de succés
      * Ce message est utile pour les cas suivants :
