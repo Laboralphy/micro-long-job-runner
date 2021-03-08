@@ -28,6 +28,7 @@
   },
   "errors": {
     "localIdInvalid": "L'identifiant \"%s\" ne correspond à rien, ici.",
+    "containerInvalid": "L'objet désigné n'est pas un contenant valide.",
     "containerTooFar": "Le contenant ouvert précédemment n'est plus ici."
   },
   "events": {
@@ -42,10 +43,11 @@
     "defaultDesc": "Vers : %s"
   },
   "ui": {
+    "empty": "vide",
     "exits": "Issues",
     "items": "Objets",
     "placeable": "Mobilier",
-    "inventory": "Inventaire",
+    "inventory": "Votre inventaire",
     "creatures": "Personnages",
     "players": "Joueurs",
     "name": "Nom",

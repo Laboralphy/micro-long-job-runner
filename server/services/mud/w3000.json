@@ -55,6 +55,34 @@
       "buc": "u",
       "tag": "gem1",
       "inventory": false
+    },
+    "blueprint::gem2": {
+      "type": "item",
+      "subtype": "gem",
+      "name": "Saphir",
+      "desc": [
+        "Petite pierre bleue."
+      ],
+      "weight": 0.2,
+      "stackable": true,
+      "identified": true,
+      "buc": "u",
+      "tag": "gem2",
+      "inventory": false
+    },
+    "blueprint::bag1": {
+      "type": "item",
+      "subtype": "bag",
+      "name": "Sacoche en cuir",
+      "desc": [
+        "Sacoche en cuir."
+      ],
+      "weight": 1,
+      "stackable": false,
+      "identified": true,
+      "buc": "u",
+      "tag": "bag1",
+      "inventory": true
     }
   },
   "sectors": {
@@ -98,6 +126,15 @@
             {
               "blueprint": "blueprint::gp",
               "stack": 50
+            },
+            {
+              "blueprint": "blueprint::bag1",
+              "content": [
+                {
+                  "blueprint": "blueprint::gem2",
+                  "stack": 2
+                }
+              ]
             }
           ]
         }

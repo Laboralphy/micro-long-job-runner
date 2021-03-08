@@ -34,7 +34,7 @@ function main ({ mud, print, command, uid, pid }, sDirection) {
     const { valid, visible, locked, destination } = mud.getPlayerDoorStatus(pid, sDirection);
     const sToDir = 'directions.v' + sDirection;
     if (valid && visible && !locked) {
-        const oPlayer = this.getEntity(pid);
+        const oPlayer = mud.getEntity(pid);
         mud.notifyPlayer(pid, STRINGS.walk, sToDir);
         mud.notifyRoom(pid, STRINGS.roomPlayerLeft, oPlayer.name, sToDir);
         mud.setEntityLocation(pid, destination);

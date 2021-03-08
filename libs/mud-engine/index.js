@@ -191,6 +191,7 @@ class MUDEngine {
         }
     }
 
+
     /**
      * Renvoie la structure de memorisation des secteurs
      * @returns {object}
@@ -269,17 +270,35 @@ class MUDEngine {
     /**
      * Renvoie l'entité locale spécifée en fonction du joueur
      * Si le joueur regarde dans un contenant, le local id sera l'un des objets contenus
-     * sinon le local id sera l'un de ceux de la pièce.
+     * sinon le local id sera l'un de ceux de la pièce. ou de son inventaire.
      * @param idPlayer {string}
      * @param lid {string}
      * @returns {null|*}
      */
     getLocalEntity (idPlayer, lid) {
         const idCC = this.getPlayerCurrentContainer(idPlayer);
+        let oReturn;
         if (idCC) {
-            return this.getInventoryLocalEntity(idCC, lid);
+            oReturn = this.getInventoryLocalEntity(idCC, lid);
+        }
+        if (oReturn) {
+            return oReturn;
         } else {
+            const oInsideInvSelf = this.getInventoryLocalEntity(idPlayer, lid);
+            if (oInsideInvSelf) {
+                return oInsideInvSelf;
+            }
             return this.getRoomLocalEntity(this.getEntity(idPlayer).location, lid);
+        }
+    }
+
+    getValidLocalEntity (idPlayer, lid) {
+        const oEntity = this.getLocalEntity(idPlayer, lid);
+        if (oEntity) {
+            return oEntity;
+        } else {
+            this.notifyPlayerFailure(idPlayer, 'errors.localIdInvalid', lid);
+            return null;
         }
     }
 
@@ -428,6 +447,7 @@ class MUDEngine {
     }
 
 
+
 //       _               _    _
 //   ___| |__   ___  ___| | _(_)_ __   __ _ ___
 //  / __| '_ \ / _ \/ __| |/ / | '_ \ / _` / __|
@@ -447,6 +467,14 @@ class MUDEngine {
             return false;
         } else {
             return true;
+        }
+    }
+
+    checkContainer (idPlayer, idEntity) {
+        if (this.isEntityExist(idEntity) && this.getEntity(idEntity).inventory) {
+            return true;
+        } else {
+            this.notifyPlayerFailure(idPlayer, 'errors.containerInvalid');
         }
     }
 
@@ -718,7 +746,7 @@ class MUDEngine {
             data: {}
         };
         this._localIdRegistry[idPlayer] = {
-            inv: new DisposableIdRegistry('i')
+            inv: new DisposableIdRegistry('u')
         };
         this.setEntityLocation(idPlayer, sLocation);
         const oRoom = this.getRoom(sLocation);
@@ -766,6 +794,7 @@ class MUDEngine {
         const id = bRegister ? ++this._lastId : '';
         const idEntity = bRegister ? 'entity::' + id : '';
         const oBlueprint = this.getBlueprint(sBlueprint);
+        const mud = this;
         const oEntity = {
             id: idEntity,
             ref: sBlueprint,
@@ -777,7 +806,14 @@ class MUDEngine {
             identified: oBlueprint.identified,
             inventory: oBlueprint.inventory ? {} : null,
             get weight () {
-                return this.blueprint.stackable ? this.blueprint.weight * this.stack : this.blueprint.weight;
+                // vérifier le contenu
+                const nInvWeight =  this.inventory
+                    ? mud
+                        .getInventoryEntities(this.id)
+                        .reduce((prev, curr) => curr.entity.weight + prev, 0)
+                    : 0;
+                const nSelfWeight = this.blueprint.stackable ? this.blueprint.weight * this.stack : this.blueprint.weight;
+                return nSelfWeight + nInvWeight;
             },
             get name () {
                 const sBase = this.identified ? this.blueprint.name : this.blueprint.uname;
@@ -881,13 +917,17 @@ class MUDEngine {
                 // créer un clone de la pile d'origin
                 const oClone = this.cloneEntity(oItem);
                 oClone.stack = count;
-                this.setEntityLocation(oClone.id, idReceiver);
+                if (!this.setEntityLocation(oClone.id, idReceiver)) {
+                    return null;
+                }
             }
             return oReturn;
         } else {
-            this.setEntityLocation(idItem, idReceiver);
-            return oItem;
+            if (this.setEntityLocation(idItem, idReceiver)) {
+                return oItem;
+            }
         }
+        return null;
     }
 
     /**
@@ -969,13 +1009,25 @@ class MUDEngine {
         }
     }
 
-
     /**
      * Change la localisation d'une entité
      * @param idTo {string} identifiant pièce
      * @param idEntity {string} identifiant entité
      */
     setEntityLocation (idEntity, idTo) {
+        // vérifier les problèmme de récursivité
+        // un objet A ne doit pas entrée dans un inventaire déja appartenant à A
+        if (idEntity === idTo) {
+            // grossière tentative de mettre un objet dans lui même
+            return false;
+        }
+        if (this.isEntityExist(idTo)) {
+            const aChainInv = this.getParentEntities(idTo);
+            if (aChainInv.includes(idEntity)) {
+                // opération interdite
+                return false;
+            }
+        }
         const oEntity = this.getEntity(idEntity);
         const idPrevLocation = oEntity.location;
         if (this.isRoomExist(idPrevLocation)) {
@@ -993,6 +1045,7 @@ class MUDEngine {
         } else {
             throw new KeyNotFoundError(idTo, 'rooms/entites');
         }
+        return true;
     }
 
     /**
@@ -1020,6 +1073,38 @@ class MUDEngine {
     }
 
     /**
+     * Renvoie la pièce dans laquelle se trouve une entité même si celle ci se trouve dans un contenant
+     * @param idEntity {string}
+     */
+    getEntityRoomLocation (idEntity) {
+        return this.getParentEntities(idEntity).pop();
+    }
+
+
+    /**
+     * Renvoie la liste des parents de l'entité
+     * @param idEntity {string}
+     * @param [aChain] {array}
+     * @return {array}
+     */
+    getParentEntities (idEntity, aChain = []) {
+        const oEntity = this.getEntity(idEntity);
+        const sLocation = oEntity.location;
+        if (aChain.includes(sLocation)) {
+            throw new Error('Recursive inventory : ' + sLocation);
+        }
+        aChain.push(sLocation);
+        if (this.isRoomExist(sLocation)) {
+            return aChain;
+        } else if (this.isEntityExist(sLocation)) {
+            return this.getParentEntities(sLocation, aChain);
+        } else {
+            throw new KeyNotFoundError(sLocation, 'rooms/entities');
+        }
+    }
+
+
+    /**
      * Renvoie l'identifiant du dernier conteneur ouvert.
      * @param idPlayer {string} identifiant joueur
      * @returns {string} identifian conteneur ouvert
@@ -1030,8 +1115,7 @@ class MUDEngine {
         if (!this.isEntityExist(cc)) {
             return '';
         }
-        const oCC = this.getEntity(cc);
-        if (oPlayer.location === oCC.location) {
+        if (oPlayer.location === this.getEntityRoomLocation(cc)) {
             return cc;
         } else {
             // ferme automatiquement le container
@@ -1259,12 +1343,13 @@ class MUDEngine {
 
     renderInventory (aItems, sTitle) {
         const aOutput = [];
+        aOutput.push('{imp ' + sTitle + '}');
         for (let { entity, lid } of aItems) {
             const sItemName = entity.name;
             aOutput.push(' - [' + lid + '] ' + sItemName);
         }
-        if (aOutput.length > 0) {
-            aOutput.unshift('{imp ' + sTitle + '}');
+        if (aItems.length === 0) {
+            aOutput.push('{info ' + this.getString('ui.empty') + '}');
         }
         return aOutput;
     }

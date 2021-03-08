@@ -1,12 +1,13 @@
 const STRINGS = {
     youDroppedHere: 'Vous déposez %s ici.',
-    youDroppedCont: 'Vous déposez %s dans.',
+    youDroppedCont: 'Vous déposez %s dans %s.',
     someoneDroppedHere: "%s dépose %s ici.",
     someoneDroppedCont: '%s dépose %s dans %s.',
     itemNotInInv: "Pas d'objet identifié [%s] dans votre inventaire.",
     itemNotInRoom: "Ceci ne correspond à aucun objet visible dans cette pièce.",
     containerTooFar: "Le dernier contenant ouvert n'est pas ici.",
-    mustBeMore: "Vous ne ramassez rien."
+    mustBeMore: "Vous ne ramassez rien.",
+    recurse: "Vous ne pouvez pas faire cela."
 };
 
 function help () {
@@ -62,8 +63,12 @@ function main ({ mud, print, command, pid }, lid, count = Infinity) {
         if (oObject) {
             // l'identifiant local est valide
             const oTransfer = mud.moveItem(oObject.id, idCC, count);
-            mud.notifyPlayer(pid, STRINGS.youDroppedCont, oCC.name, oTransfer.name);
-            mud.notifyRoom(pid, STRINGS.someoneDroppedCont, oPlayer.name, oCC.name, oTransfer.name);
+            if (oTransfer) {
+                mud.notifyPlayer(pid, STRINGS.youDroppedCont, oTransfer.name, oCC.name);
+                mud.notifyRoom(pid, STRINGS.someoneDroppedCont, oPlayer.name, oTransfer.name, oCC.name);
+            } else {
+                mud.notifyPlayerFailure(pid, STRINGS.recurse);
+            }
             return oTransfer;
         } else {
             // le lid ne correspond pas à un objet valide

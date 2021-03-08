@@ -62,7 +62,6 @@ function main (context, lid) {
         }
     } else {
         context.command('close');
-        // mud.setPlayerCurrentContainer(pid, '');
         mud.notifyPlayer(pid, STRINGS.lookAround);
         mud
           .renderPlayerVisualReport(pid)
