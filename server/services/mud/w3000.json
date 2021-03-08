@@ -27,6 +27,34 @@
       "buc": "u",
       "tag": "gp",
       "inventory": false
+    },
+    "blueprint::chest1": {
+      "type": "placeable",
+      "subtype": "-",
+      "name": "Coffre en bois",
+      "desc": [
+        "Petit coffre en bois, long de 40 cm environ."
+      ],
+      "weight": 2,
+      "stackable": false,
+      "identified": true,
+      "buc": "u",
+      "tag": "chest1",
+      "inventory": true
+    },
+    "blueprint::gem1": {
+      "type": "item",
+      "subtype": "gem",
+      "name": "Grenat",
+      "desc": [
+        "Petite pierre rouge."
+      ],
+      "weight": 0.2,
+      "stackable": true,
+      "identified": true,
+      "buc": "u",
+      "tag": "gem1",
+      "inventory": false
     }
   },
   "sectors": {
@@ -52,13 +80,26 @@
           "desc": "Une porte donnant sur le couloir"
         }
       },
-      "defaultEntities": [
+      "content": [
         {
           "blueprint": "blueprint::k3011"
         },
         {
           "blueprint": "blueprint::gp",
           "stack": 100
+        },
+        {
+          "blueprint": "blueprint::chest1",
+          "content": [
+            {
+              "blueprint": "blueprint::gem1",
+              "stack": 1
+            },
+            {
+              "blueprint": "blueprint::gp",
+              "stack": 50
+            }
+          ]
         }
       ]
     },

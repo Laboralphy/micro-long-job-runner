@@ -64,7 +64,7 @@ export default {
 .flex-item:nth-child(2) {
   order: 0;
   flex: none;
-  width: 20em;
+  width: 10em;
 }
 
 .terminal-container {

@@ -26,8 +26,13 @@
     "vsw": "vers le sud-ouest",
     "invalid": "Direction invalide : \"%s\" - Les directions valides sont : n, e, w, s, ne, nw, se, sw."
   },
+  "errors": {
+    "localIdInvalid": "L'identifiant \"%s\" ne correspond à rien, ici.",
+    "containerTooFar": "Le contenant ouvert précédemment n'est plus ici."
+  },
   "events": {
-    "youAreIn": "Vous voici dans : %s."
+    "youAreIn": "Vous voici dans : %s.",
+    "playerArrived": "%s vient d'apparaitre ici."
   },
   "nav": {
     "doorLocked": "verrouillée",
@@ -36,12 +41,11 @@
     "doorLockable": "déverrouillée",
     "defaultDesc": "Vers : %s"
   },
-  "errors": {
-    "invalidPlayerName": "Ce nom est invalide. Un nom doit comporter entre 2 et 20 caractères sans espace."
-  },
   "ui": {
     "exits": "Issues",
-    "objects": "Objets",
+    "items": "Objets",
+    "placeable": "Mobilier",
+    "inventory": "Inventaire",
     "creatures": "Personnages",
     "players": "Joueurs",
     "name": "Nom",

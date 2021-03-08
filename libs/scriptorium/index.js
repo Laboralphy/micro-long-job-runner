@@ -70,20 +70,9 @@ class Scriptorium {
     runScript (sId, context, ...params) {
         if (sId in this._routes) {
             const script = this._routes[sId];
-            try {
-                const result = script.main(this.composeContext(context), ...params)
-                if (result instanceof Promise) {
-                    return result
-                } else {
-                    return Promise.resolve(result)
-                }
-            } catch (e) {
-                console.error('error in script.');
-                console.error(e);
-                return Promise.reject(e.message);
-            }
+            return script.main(this.composeContext(context), ...params);
         } else {
-            return Promise.reject('Invalid script route : "' + sId + '"');
+            throw new Error('Invalid script route : "' + sId + '"');
         }
     }
 

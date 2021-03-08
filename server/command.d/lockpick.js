@@ -2,23 +2,21 @@ const STRINGS = {
     "doorInvalid": "Il n'y a pas de porte par ici.",
     "doorNotLocked": "Il n'y a pas de serrure sur cette porte.",
     "doorHasCode": "Cette porte est verrouillée par un code secret.",
-    "picklockSuccess": "Vous réussissez à crocheter la serrure.",
-    "picklockFailed": "Vous ne parvenez pas à crocheter la serrure.",
-    "roomPicklockSuccess": "%s vient de crocheter une serrure sur la porte située %s.",
-    "roomPicklockFailed": "%s ne parvient pas à crocheter une serrure sur la porte située %s."
+    "lockpickSuccess": "Vous réussissez à crocheter la serrure.",
+    "lockpickFailed": "Vous ne parvenez pas à crocheter la serrure.",
+    "roomLockpickSuccess": "%s vient de crocheter une serrure sur la porte située %s.",
+    "roomLockpickFailed": "%s ne parvient pas à crocheter une serrure sur la porte située %s."
 };
-
-const DIRECTIONS = ['n', 'e', 'w', 's', 'ne', 'nw', 'sw', 'se'];
 
 function help () {
     return [
         {
             section: 'Commande',
-            text: 'Picklock - action de crochetage de serrure verrouillée.'
+            text: 'Lockpick - action de crochetage de serrure verrouillée.'
         },
         {
             section: 'Syntaxe',
-            text: 'picklock {i direction|objet}'
+            text: 'lockpick {i direction|objet}'
         },
         {
             section: 'Description',
@@ -42,7 +40,7 @@ function main(context, sDirectionOrEntity) {
         const mud = context.mud;
         const oPlayer = mud.getEntity(idPlayer);
         const idRoom = mud.getEntity(idPlayer).location;
-        const {valid, locked, dcPicklock, code} = mud.getPlayerDoorStatus(idPlayer, sDirection);
+        const {valid, locked, dcLockpick, code} = mud.getPlayerDoorStatus(idPlayer, sDirection);
         if (!valid) {
             // porte non valide !
             mud.notifyPlayer(idPlayer, STRINGS.doorInvalid);
@@ -59,15 +57,15 @@ function main(context, sDirectionOrEntity) {
             return;
         }
         // récupérer le talent du joueur
-        const nSkill = mud.getPlayerSkill(idPlayer, 'picklock');
-        if (nSkill >= dcPicklock) {
+        const nSkill = mud.getPlayerSkill(idPlayer, 'lockpick');
+        if (nSkill >= dcLockpick) {
             // on crochète
-            mud.notifyPlayerSuccess(idPlayer, STRINGS.picklockSuccess);
-            mud.notifyRoom(idRoom, idPlayer, STRINGS.roomPicklockSuccess, oPlayer.name, 'directions.v' + sDirection);
+            mud.notifyPlayerSuccess(idPlayer, STRINGS.lockpickSuccess);
+            mud.notifyRoom(idPlayer, STRINGS.roomLockpickSuccess, oPlayer.name, 'directions.v' + sDirection);
             mud.setDoorLocked(idRoom, sDirection, false);
         } else {
-            mud.notifyPlayerFailure(idPlayer, STRINGS.picklockFailed);
-            mud.notifyRoom(idRoom, idPlayer, STRINGS.roomPicklockFailed, oPlayer.name, 'directions.v' + sDirection);
+            mud.notifyPlayerFailure(idPlayer, STRINGS.lockpickFailed);
+            mud.notifyRoom(idPlayer, STRINGS.roomLockpickFailed, oPlayer.name, 'directions.v' + sDirection);
         }
     } else {
         // ce n'est pas une direction, c'est un objet plaçable, ou un item du genre : sac ou besace

@@ -13,7 +13,7 @@ if (process.env.SERVER_PORT) {
   wss.service(new ServiceFront());
   wss.service(new ServiceMUD());
   wss.listen(process.env.SERVER_PORT, process.env.SERVER_ADDRESS);
-  Logger.log('[server] listening address:', process.env.ADDRESS);
+  Logger.log('[server] listening address:', process.env.SERVER_ADDRESS);
   Logger.log('[server] listening on port:', process.env.SERVER_PORT);
 } else {
   Logger.log('[server] SERVER_PORT variable not set (check .env file)');

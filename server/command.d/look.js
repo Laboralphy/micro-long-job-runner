@@ -28,40 +28,41 @@ function help () {
 }
 
 function describeItem ({ print, mud }, oEntity) {
-    const oBlueprint = oEntity.blueprint;
-    oBlueprint.desc.forEach(s => print(s));
-    print(mud.getString('ui.weight') + ': ' + oBlueprint.weight);
+    oEntity.desc.forEach(s => print(s));
+    print(mud.getString('ui.weight') + ': ' + oEntity.weight);
 }
 
 function describePlayer ({ print, mud }, oPlayer) {
-    oPlayer.blueprint.desc.forEach(s => print(s));
+    oPlayer.desc.forEach(s => print(s));
 }
 
 function main (context, lid) {
     const { mud, print, pid } = context;
     if (lid) {
-        const idRoom = mud.getEntity(pid).location;
-        const oEntity = mud.getRoomLocalEntity(idRoom, lid);
+        const oEntity = mud.getLocalEntity(pid, lid);
+        if (!oEntity) {
+            return;
+        }
         const oPlayer = mud.getEntity(pid);
-        if (oEntity) {
-            mud.notifyPlayer(pid, STRINGS.lookEntity, oEntity.name);
-            // entité trouvée grace au local id
-            switch (oEntity.blueprint.type) {
-                case 'player':
-                    describePlayer(context, oEntity);
-                    break;
+        mud.notifyPlayer(pid, STRINGS.lookEntity, oEntity.name);
+        // entité trouvée grace au local id
+        switch (oEntity.blueprint.type) {
+            case 'player':
+                describePlayer(context, oEntity);
+                break;
 
-                case 'item':
-                case 'placeable':
-                    // si c'est un objet avec un inventaire...
-                    if (oEntity.inventory) {
-                        oPlayer.data.mostRecentLookedContainer = oEntity.id;
-                    }
-                    describeItem(context, oEntity);
-                    break;
-            }
+            case 'item':
+            case 'placeable':
+                // si c'est un objet avec un inventaire...
+                if (oEntity.inventory) {
+                    oPlayer.data.mostRecentLookedContainer = oEntity.id;
+                }
+                describeItem(context, oEntity);
+                break;
         }
     } else {
+        context.command('close');
+        // mud.setPlayerCurrentContainer(pid, '');
         mud.notifyPlayer(pid, STRINGS.lookAround);
         mud
           .renderPlayerVisualReport(pid)

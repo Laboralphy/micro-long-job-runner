@@ -1,8 +1,10 @@
 const util = require('util');
+const path = require('path');
 const Events = require('events');
-const { Validator } = require('jsonschema')
-const validator = new Validator()
+const { Validator } = require('jsonschema');
+const validator = new Validator();
 const DisposableIdRegistry = require('../disposable-id-registry');
+const Scriptorium = require('../scriptorium');
 const STRINGS = require('./mud-strings.json');
 const SCHEMAS = {
     blueprints: require('./schemas/blueprints.json'),
@@ -15,11 +17,37 @@ const CODE_DIRECTIONS = ['n', 'e', 'w', 's', 'ne', 'nw', 'se', 'sw'];
 
 class MUDEngine {
     constructor() {
+        this._scriptorium = new Scriptorium();
         this._events = new Events();
         this._lastId = 0;
         this._localIdRegistry = {};
         this._STRINGS = STRINGS;
         this._validObjects = new Set(); // les objet qui ont passé le json-validator sont stocké ici pour ne pas avoir à les revalider
+    }
+
+    /**
+     * Charge tous les script présents dans le répertoire spécifiés
+     * @param sPath {string} chemin du répertoire où sont les scripts
+     * @returns {Promise<Object>}
+     */
+    loadScripts (sPath) {
+        return this._scriptorium.index(sPath);
+    }
+
+    /**
+     * Lance un script en fonction de la commande.
+     * @param context {*} contexte utilisable par les script
+     * @param sCommand
+     * @param args
+     * @returns {boolean}
+     */
+    command (context, sCommand, args) {
+        if (this._scriptorium.scriptExists(sCommand)) {
+            this._scriptorium.runScript(sCommand, context, ...args);
+            return true;
+        } else {
+            return false;
+        }
     }
 
     static _deepFreeze (o) {
@@ -82,6 +110,22 @@ class MUDEngine {
      */
     getBlueprint (idBlueprint) {
         return this.getValidObject(idBlueprint, 'blueprints', true);
+    }
+
+    getMiniType (sType) {
+        switch (sType) {
+            case 'player':
+                return 'p';
+
+            case 'item':
+                return 'i';
+
+            case 'placeable':
+                return 'o';
+
+            case 'creature':
+                return 'c';
+        }
     }
 
     /**
@@ -201,7 +245,7 @@ class MUDEngine {
             .getRoomEntities(idRoom)
             .find(e => e.lid === lid);
         if (oFoundEntity) {
-            return this.getEntity(oFoundEntity.id);
+            return oFoundEntity.entity;
         } else {
             return null;
         }
@@ -213,12 +257,29 @@ class MUDEngine {
             return null;
         }
         const oFoundItem = this
-            .getInventoryEntities(oContainer)
+            .getInventoryEntities(idContainer)
             .find(e => e.lid === lid);
         if (oFoundItem) {
-            return this.getEntity(oFoundItem.id);
+            return oFoundItem.entity;
         } else {
             return null;
+        }
+    }
+
+    /**
+     * Renvoie l'entité locale spécifée en fonction du joueur
+     * Si le joueur regarde dans un contenant, le local id sera l'un des objets contenus
+     * sinon le local id sera l'un de ceux de la pièce.
+     * @param idPlayer {string}
+     * @param lid {string}
+     * @returns {null|*}
+     */
+    getLocalEntity (idPlayer, lid) {
+        const idCC = this.getPlayerCurrentContainer(idPlayer);
+        if (idCC) {
+            return this.getInventoryLocalEntity(idCC, lid);
+        } else {
+            return this.getRoomLocalEntity(this.getEntity(idPlayer).location, lid);
         }
     }
 
@@ -249,14 +310,26 @@ class MUDEngine {
             // construction du stockage des entités
             oStorage[idRoom] = {};
             // on a profite pour coller tous les objet par default
-            const aDefaultEntities = oRoom.defaultEntities;
-            if (aDefaultEntities) {
-                aDefaultEntities.forEach(({ blueprint, stack = 1 }) => {
-                    this.createEntity(blueprint, idRoom, stack);
+            const aContent = oRoom.content;
+            if (aContent) {
+                aContent.forEach(({ blueprint, stack = 1, content = [] }) => {
+                    const oEntity = this.createEntity(blueprint, idRoom, stack);
+                    if (oEntity.inventory) {
+                        this.setEntityContent(oEntity, content);
+                    }
                 });
             }
         }
         return oStorage[idRoom];
+    }
+
+    setEntityContent (oEntity, aContent) {
+        aContent.forEach(({ blueprint, stack = 1, content = [] }) => {
+            const oSubEntity = this.createEntity(blueprint, oEntity.id, stack);
+            if (Array.isArray(content) && oSubEntity.inventory) {
+                this.setEntityContent(oSubEntity, content);
+            }
+        });
     }
 
     /**
@@ -264,7 +337,9 @@ class MUDEngine {
      * @param oInventory {object}
      * @returns {{lid: string, id: string}[]}
      */
-    getInventoryEntities (oInventory) {
+    getInventoryEntities (idContainer) {
+        const oContOwner = this.getEntity(idContainer);
+        const oInventory = oContOwner.inventory;
         const aEntities = [];
         for (let idEntity in oInventory) {
             if (oInventory.hasOwnProperty(idEntity)) {
@@ -275,7 +350,7 @@ class MUDEngine {
         }
         return aEntities
             .sort((a, b) => a.i - b.i)
-            .map(({ id, lid }) => ({ id, lid }));
+            .map(({ id, lid }) => ({ lid, entity: this.getEntity(id) }));
     }
 
     /**
@@ -301,7 +376,9 @@ class MUDEngine {
                 }
             }
         }
-        return aEntities.sort((a, b) => a.i - b.i);
+        return aEntities
+            .sort((a, b) => a.i - b.i)
+            .map(({ id, lid }) => ({ lid, id, entity: this.getEntity(id) }));
     }
 
 
@@ -315,12 +392,12 @@ class MUDEngine {
         for (const id in oInventory) {
             if (oInventory.hasOwnProperty(id)) {
                 const oOtherItem = this.getEntity(id);
-                if (oOtherItem.blueprint.ref === oItem.blueprint.ref &&
+                if (oOtherItem.ref === oItem.ref &&
                     oOtherItem.buc === oItem.buc &&
                     oOtherItem.identified === oItem.identified &&
                     oOtherItem.tag === oItem.tag
                 ) {
-                    return id;
+                    return oOtherItem;
                 }
             }
         }
@@ -350,6 +427,7 @@ class MUDEngine {
         return null;
     }
 
+
 //       _               _    _
 //   ___| |__   ___  ___| | _(_)_ __   __ _ ___
 //  / __| '_ \ / _ \/ __| |/ / | '_ \ / _` / __|
@@ -372,7 +450,45 @@ class MUDEngine {
         }
     }
 
+    /**
+     * Verifie la présence, dans la pièce,  de l'entité spécifié par son identifiant local
+     * @param idPlayer {string} identifiant joueur
+     * @param lid {string} local identifiant
+     */
+    checkRoomLocalEntity (idPlayer, lid) {
+        try {
+            const oPlayer = this.getEntity(idPlayer);
+            const idRoom = oPlayer.location;
+            if (this.getRoomLocalEntity(idRoom, lid)) {
+                return true
+            } else {
+                this.notifyPlayerFailure(idPlayer, 'errors.localIdInvalid', lid);
+                return false;
+            }
+        } catch (e) {
+            return false;
+        }
+    }
 
+    /**
+     * Verifie la présence, dans l'inventaire du sujet, de l'entité spécifié par son identifiant local
+     * @param idPlayer {string} sujet dans lequel on vérifier la présence de l'item
+     * @param lid {string} local identifiant
+     */
+    checkInventoryLocalEntity (idPlayer, lid) {
+        try {
+            const oPlayer = this.getEntity(idPlayer);
+            const idRoom = oPlayer.location;
+            if (this.getInventoryLocalEntity(idPlayer, lid)) {
+                return true
+            } else {
+                this.notifyPlayerFailure(idPlayer, 'errors.localIdInvalid', lid);
+                return false;
+            }
+        } catch (e) {
+            return false;
+        }
+    }
 
 //  ____                                         _   _  __
 // |  _ \  ___   ___  _ __ ___    __ _ _ __   __| | | |/ /___ _   _ ___
@@ -433,7 +549,7 @@ class MUDEngine {
      * Renvoie les renseignment concernant une porte
      * @param idPlayer {string} identifiant joueur
      * @param sDirection {string} direction de la porte
-     * @returns {{valid: boolean, dcPicklock: number, dcSearch: number, code: string, visible: boolean, secret: boolean, locked: boolean, key: string}}
+     * @returns {{valid: boolean, dcLockpick: number, dcSearch: number, code: string, visible: boolean, secret: boolean, locked: boolean, key: string}}
      */
     getPlayerDoorStatus (idPlayer, sDirection) {
         const idRoom = this.getEntity(idPlayer).location;
@@ -443,7 +559,7 @@ class MUDEngine {
             valid,
             lockable: false,
             locked: false,
-            dcPicklock: 0,
+            dcLockpick: 0,
             key: '',
             code: '',
             secret: false,
@@ -456,7 +572,7 @@ class MUDEngine {
             if (oStatus.lockable) {
                 const oDoorLock = oDoor.lock;
                 oStatus.locked = oStatus.lockable && oDoorLock.locked;
-                oStatus.dcPicklock = oStatus.lockable
+                oStatus.dcLockpick = oStatus.lockable
                     ? 0
                     : ('difficulty' in oDoorLock)
                         ? oDoorLock.difficulty
@@ -492,7 +608,78 @@ class MUDEngine {
     set state (value) {
         value.entities = {};
         value.roomEntityStorage = {};
+        value.map = {};
+        value.doors = {};
         this._state = value;
+    }
+
+    /**
+     * Construction de la carte
+     * @param idStartingRoom {string} identifiant de la pièce de départ
+     * @param x {number} coordonnées de départ
+     * @param y {number}
+     * @param z {number}
+     * @param oMap {object} carte objet
+     * @return {object} carté générée
+     */
+    buildMap (idStartingRoom, x, y, z, oMap = {}) {
+        // si déja visité alors pas la peine d'y aller
+        if (idStartingRoom in oMap) {
+            return oMap;
+        }
+        const oRoom = this.getRoom(idStartingRoom);
+        // on note cette pièce et ses coordonnées
+        oMap[idStartingRoom] = { x, y, z };
+        // liste des issues possibles
+        CODE_DIRECTIONS.forEach(sDirection => {
+            if (sDirection in oRoom.nav) {
+                // la pièce mène bien vers cette direction
+                const oNav = oRoom.nav[sDirection];
+                const idNextRoom = oNav.to;
+                switch (sDirection) {
+                    case 'n':
+                        this.buildMap(idNextRoom, x, y - 1, z, oMap);
+                        break;
+
+                    case 'ne':
+                        this.buildMap(idNextRoom, x + 1, y - 1, z, oMap);
+                        break;
+
+                    case 'e':
+                        this.buildMap(idNextRoom, x + 1, y, z, oMap);
+                        break;
+
+                    case 'se':
+                        this.buildMap(idNextRoom, x + 1, y + 1, z, oMap);
+                        break;
+
+                    case 's':
+                        this.buildMap(idNextRoom, x, y + 1, z, oMap);
+                        break;
+
+                    case 'sw':
+                        this.buildMap(idNextRoom, x - 1, y + 1, z, oMap);
+                        break;
+
+                    case 'w':
+                        this.buildMap(idNextRoom, x - 1, y, z, oMap);
+                        break;
+
+                    case 'nw':
+                        this.buildMap(idNextRoom, x - 1, y - 1, z, oMap);
+                        break;
+
+                    case 'u':
+                        this.buildMap(idNextRoom, x, y, z - 1, oMap);
+                        break;
+
+                    case 'd':
+                        this.buildMap(idNextRoom, x, y, z + 1, oMap);
+                        break;
+                }
+            }
+        });
+        return oMap;
     }
 
     /**
@@ -510,7 +697,8 @@ class MUDEngine {
         const idPlayer = this.getPlayerId(id);
         const oPlayer = this.getEntities()[idPlayer] = {
             type: 'player',
-            id,
+            id: idPlayer,
+            uid: id,
             blueprint: {
                 type: 'player'
             },
@@ -523,18 +711,19 @@ class MUDEngine {
             inventory: {},
             skills: {
                 spot: 5,
-                picklock: 5
+                lockpick: 5
             },
             spotted: {},
+            currentContainer: '',
             data: {}
         };
         this._localIdRegistry[idPlayer] = {
-            inv: new DisposableIdRegistry()
+            inv: new DisposableIdRegistry('i')
         };
         this.setEntityLocation(idPlayer, sLocation);
         const oRoom = this.getRoom(sLocation);
         this.notifyPlayer(idPlayer, 'events.youAreIn', oRoom.name);
-        this.notifyRoom(sLocation, idPlayer, 'events.roomPlayerArrived', oPlayer.name);
+        this.notifyRoom(idPlayer, 'events.playerArrived', oPlayer.name);
         this.notifyAdmin('new player %s spawned at %s', oPlayer.name, oRoom.name);
         return idPlayer;
     }
@@ -542,20 +731,22 @@ class MUDEngine {
     /**
      * Clonage d'une entité
      * @param oEntity {object} instance de l'entité source
+     * @param [bRegister] {boolean} si true alors enregsttre l'objet et lui attribue un id
      * @returns {object}
      */
-    cloneEntity (oEntity) {
-        ++this._lastId;
-        const idEntity = 'entity::' + this._lastId;
-        const oBlueprint = oEntity.blueprint;
-        const oClone = this.getEntities()[idEntity] = {
-            ...oEntity,
-            id: idEntity,
-            inventory: {},
-            location: ''
-        };
-        if (oBlueprint.inventory) {
-            this._localIdRegistry[idEntity] = {
+    cloneEntity (oEntity, bRegister = true) {
+        const oClone = this.createEntity(
+            oEntity.ref,
+            '',
+            oEntity.blueprint.stackable ? oEntity.stack : 1,
+            bRegister
+        );
+        oClone.tag = oEntity.tag;
+        oClone.buc = oEntity.buc;
+        oClone.identified = oEntity.identified;
+        oClone.inventory = oEntity.blueprint.inventory ? {} : null;
+        if (oEntity.blueprint.inventory) {
+            this._localIdRegistry[oClone.id] = {
                 inv: new DisposableIdRegistry()
             };
         }
@@ -568,42 +759,47 @@ class MUDEngine {
      * @param sBlueprint {string} blueprint d'après lequel on construit l'entité
      * @param sLocation {string} localisation initiale
      * @param nCount {number} nombre d'exemplaire pour le cas des objets empilables (flèche, or, potions...}
-     * @returns {string} identifiant de l'entité créer
+     * @param bRegister {boolean} si false alors l'objet n'est pas intégré au monde
+     * @returns {object} l'entité crée
      */
-    createEntity (sBlueprint, sLocation, nCount = 1) {
-        ++this._lastId;
-        const idEntity = 'entity::' + this._lastId;
+    createEntity (sBlueprint, sLocation, nCount = 1, bRegister = true) {
+        const id = bRegister ? ++this._lastId : '';
+        const idEntity = bRegister ? 'entity::' + id : '';
         const oBlueprint = this.getBlueprint(sBlueprint);
         const oEntity = {
             id: idEntity,
+            ref: sBlueprint,
             blueprint: oBlueprint,
             tag: oBlueprint.tag,
             location: '',
-            name: oBlueprint.name,
-            desc: oBlueprint.desc
+            stack: nCount,
+            buc: oBlueprint.buc,
+            identified: oBlueprint.identified,
+            inventory: oBlueprint.inventory ? {} : null,
+            get weight () {
+                return this.blueprint.stackable ? this.blueprint.weight * this.stack : this.blueprint.weight;
+            },
+            get name () {
+                const sBase = this.identified ? this.blueprint.name : this.blueprint.uname;
+                const sStack = this.blueprint.stackable ? ' (x' + this.stack.toString() + ')' : '';
+                return sBase + sStack;
+            },
+            get desc () {
+                return this.identified ? this.blueprint.desc : this.blueprint.udesc
+            }
         };
-        switch (oBlueprint.type) {
-            case 'item':
-                Object.assign(oEntity, {
-                    stack: nCount,
-                    buc: oBlueprint.buc,
-                    identified: oBlueprint.identified,
-                    inventory: oBlueprint.inventory ? {} : null,
-                    name: oBlueprint.identified ? oBlueprint.name : oBlueprint.uname,
-                    desc: oBlueprint.identified ? oBlueprint.desc : oBlueprint.udesc
-                });
-                break;
-        }
-        this.getEntities()[idEntity] = oEntity;
         if (oBlueprint.inventory) {
             this._localIdRegistry[idEntity] = {
-                inv: new DisposableIdRegistry('c')
+                inv: new DisposableIdRegistry('i')
             };
         }
-        if (sLocation) {
-            this.setEntityLocation(idEntity, sLocation);
+        if (bRegister) {
+            this.getEntities()[idEntity] = oEntity;
+            if (sLocation) {
+                this.setEntityLocation(idEntity, sLocation);
+            }
         }
-        return idEntity;
+        return oEntity;
     }
 
     /**
@@ -620,8 +816,12 @@ class MUDEngine {
                     this.destroyEntity(id);
                 });
             }
-            const idRoom = this.getEntity(idEntity).location;
-            this.removeRoomEntity(idRoom, idEntity);
+            const idLocation = this.getEntity(idEntity).location;
+            if (this.isRoomExist(idLocation)) {
+                this.removeRoomEntity(idLocation, idEntity);
+            } else if (this.isEntityExist(idLocation)) {
+                this.removeInventoryEntity(idLocation, idEntity);
+            }
             if (idEntity in this._localIdRegistry) {
                 delete this._localIdRegistry[idEntity];
             }
@@ -631,98 +831,63 @@ class MUDEngine {
 
     /**
      * Ajoute un objet dans l'inventaire de l'entity
-     * @param idEntity {string} identifiant de l'entité qui effectue l'action
      * @param idItem {string} identifiant de l'objet à ramasser
+     * @param idReceiver {string} identifiant de l'entité qui effectue l'action
      * @param count {number} nombre d'exemplaire à prendre
      */
-    takeItem (idEntity, idItem, count = Infinity) {
+    moveItem (idItem, idReceiver, count = Infinity) {
         if (count < 1) {
             return null;
         }
-        const oEntity = this.getEntity(idEntity);
         const oItem = this.getEntity(idItem);
-        if (oEntity.inventory) {
-            // l'entité bénéficiaire a bienun inventaire
-            const oInventory = oEntity.inventory;
-            if (oItem.blueprint.stackable && oItem.stack > count) {
-                // l'item qu'on veut déposer est stackable
-                // recherche une éventuelle pile d'objet du meme blueprint
-                const idPile = this.findItemStack(oItem, oInventory);
-                if (idPile) {
-                    // une pile du même type d'objet existe déja dans l'inventaire
-                    const oInvItem = this.getEntity(idPile);
-                    // additionner les piles
-                    if (oItem.stack > count) {
-                        // on ne veut qu'une partie de la pile
-                        oItem.stack -= count;
-                        oInvItem.stack += count;
-                    } else {
-                        // on prend tout
-                        oInvItem.stack += oItem.stack;
-                        this.destroyEntity(idItem);
-                    }
-                    return oInvItem;
-                } else {
-                    // aucune pile du même type déja dans l'inv.
-                    // il faut créer notre propre pile
-                    // créer un clone de la pile d'origin
-                    const oClone = this.cloneEntity(oItem);
-                    this.setEntityLocation(oClone.id, idEntity);
-                    // ajuster les piles
-                    oItem.stack -= count;
-                    oClone.stack = count;
-                    oInventory[oClone.id] = this._localIdRegistry[idEntity].inv.getId();
-                    return oClone;
-                }
-            }
-            // obtenir local id
-            oInventory[idItem] = this._localIdRegistry[idEntity].inv.getId();
-            if (this.isRoomExist(oItem.location)) {
-                // l'objet était dans une pièce
-                this.removeRoomEntity(oItem.location, idItem);
-            } else if (this.isEntityExist(oItem.location)) {
-                // l'entité était dans l'inventaire d'une entité
-                this.removeInventoryEntity(oItem.location, idItem);
-            }
-        }
-    }
-
-    /**
-     * Retire un objet de l'inventaire
-     * @param idEntity {string} identifiant de l'entité qui possède l'inventaire
-     * @param idItem {string} identifiant de l'item
-     * @param count {number} pour les objects empilable on peut spécifier une quantité d'exemplaire
-     * @returns {null|*} objet nouvellement retiré
-     */
-    dropItem (idEntity, idItem, count = Infinity) {
-        if (count < 1) {
+        if (oItem.location === idReceiver) {
             return null;
         }
-        const oEntity = this.getEntity(idEntity);
-        const oItem = this.getEntity(idItem);
-        if (oEntity.inventory) {
-            const oInventory = oEntity.inventory;
-            // chercher si l'item est bien dans l'inventaire
-
-            if (idItem in oInventory) {
-                // est ce un objet empilable ?
-                if (oItem.blueprint.stackable && count < oItem.stack) {
-                    // réduire la pile
-                    // créer un nouvel objet
-                    const oClone = this.cloneEntity(oItem);
-                    // ajuster les stack
-                    oClone.stack = count;
-                    oItem.stack -= count;
-                    return oClone;
-                } else {
-                    // l'item n'est pas stackable... c'est plus simple
-                    // ou bien il est stackable mais on enleve toute la pile
-                    delete oInventory[idItem];
-                    return oItem;
-                }
+        let oRecvInventory;
+        if (this.isRoomExist(idReceiver)) {
+            oRecvInventory = this.getRoomEntityStorage(idReceiver)
+        } else if (this.isEntityExist(idReceiver)) {
+            const oReceiver = this.getEntity(idReceiver);
+            if (oReceiver.inventory) {
+                oRecvInventory = oReceiver.inventory;
+            } else {
+                return null;
             }
         }
-        return null;
+        // l'entité bénéficiaire a bien un inventaire
+        // on ne dépasse pasles borne, on corrige le parametre
+        count = Math.max(1, Math.min(oItem.stack, count));
+        if (oItem.blueprint.stackable) {
+            // cas où l'élément convoité contient davantage d'exemplaires que ce qu'on veut prendre
+            // dans ce cas on va laisser l'élément dans son ancien inventaire, on réduit sa pile
+            // on le clone dans le nouvel inventaire
+            let oReturn = this.cloneEntity(oItem, false);
+            oReturn.stack = count;
+            // l'item qu'on veut déposer est stackable
+            // recherche une éventuelle pile d'objet du meme blueprint
+            const oInvItem = this.findItemStack(oItem, oRecvInventory);
+            oItem.stack -= count;
+            if (oItem.stack <= 0) {
+                this.destroyEntity(oItem.id);
+            }
+            if (oInvItem) {
+                // une pile du même type d'objet existe déja dans l'inventaire
+                // additionner les piles
+                // on ne veut qu'une partie de la pile
+                oInvItem.stack += count;
+            } else {
+                // aucune pile du même type déja dans l'inv.
+                // il faut créer notre propre pile
+                // créer un clone de la pile d'origin
+                const oClone = this.cloneEntity(oItem);
+                oClone.stack = count;
+                this.setEntityLocation(oClone.id, idReceiver);
+            }
+            return oReturn;
+        } else {
+            this.setEntityLocation(idItem, idReceiver);
+            return oItem;
+        }
     }
 
     /**
@@ -735,7 +900,7 @@ class MUDEngine {
         // déterminer le type d'une entité
         const oEntity = this.getEntity(idEntity);
         const sType = oEntity.blueprint.type;
-        const sMiniType = sType.charAt(0).toLowerCase();
+        const sMiniType = this.getMiniType(sType);
         const oRES = this.getRoomEntityStorage(idRoom);
         oRES[idEntity] = this._localIdRegistry[idRoom][sMiniType].getId();
         oEntity.location = idRoom;
@@ -747,10 +912,13 @@ class MUDEngine {
      * @param idItem {string}
      */
     addInventoryEntity (idContainer, idItem) {
-        const oEntity = this.getEntity(idItem);
-        const oContainer = this.getEntity(idContainer);
-        oContainer[idItem] = this._localIdRegistry[idContainer].inv.getId();
-        oEntity.location = idContainer;
+        const oContainerOwner = this.getEntity(idContainer);
+        const oContainer = oContainerOwner.inventory;
+        if (oContainer) {
+            const oEntity = this.getEntity(idItem);
+            oContainer[idItem] = this._localIdRegistry[idContainer].inv.getId();
+            oEntity.location = idContainer;
+        }
     }
 
     /**
@@ -759,12 +927,15 @@ class MUDEngine {
      * @param idItem
      */
     removeInventoryEntity (idContainer, idItem) {
-        const oContainer = this.getEntity(idContainer);
-        const lid = oContainer[idItem];
-        this._localIdRegistry[idContainer].inv.disposeId(lid);
-        delete oContainer[idItem];
-        const oItem = this.getEntity(idItem);
-        oItem.location = '';
+        const oContainerOwner = this.getEntity(idContainer);
+        const oContainer = oContainerOwner.inventory;
+        if (oContainer) {
+            const lid = oContainer[idItem];
+            this._localIdRegistry[idContainer].inv.disposeId(lid);
+            delete oContainer[idItem];
+            const oItem = this.getEntity(idItem);
+            oItem.location = '';
+        }
     }
 
     /**
@@ -798,6 +969,7 @@ class MUDEngine {
         }
     }
 
+
     /**
      * Change la localisation d'une entité
      * @param idTo {string} identifiant pièce
@@ -807,8 +979,10 @@ class MUDEngine {
         const oEntity = this.getEntity(idEntity);
         const idPrevLocation = oEntity.location;
         if (this.isRoomExist(idPrevLocation)) {
+            // l'entité était dans une pièce au sol
             this.removeRoomEntity(idPrevLocation, idEntity);
         } else if (this.isEntityExist(idPrevLocation)) {
+            // l'enttité était dans l'inventaire d'une autre entité
             this.removeInventoryEntity(idPrevLocation, idEntity);
         }
         if (this.isRoomExist(idTo)) {
@@ -835,6 +1009,36 @@ class MUDEngine {
         }
     }
 
+    /**
+     * Défini le container dans lequel le joueur fourre son nez
+     * un certains nombre de commande se serve de cette variable
+     * @param idPlayer {string} identifiant jouer
+     * @param idContainer
+     */
+    setPlayerCurrentContainer (idPlayer, idContainer) {
+        this.getEntity(idPlayer).currentContainer = idContainer;
+    }
+
+    /**
+     * Renvoie l'identifiant du dernier conteneur ouvert.
+     * @param idPlayer {string} identifiant joueur
+     * @returns {string} identifian conteneur ouvert
+     */
+    getPlayerCurrentContainer (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        const cc = oPlayer.currentContainer;
+        if (!this.isEntityExist(cc)) {
+            return '';
+        }
+        const oCC = this.getEntity(cc);
+        if (oPlayer.location === oCC.location) {
+            return cc;
+        } else {
+            // ferme automatiquement le container
+            this.setPlayerCurrentContainer(idPlayer, '');
+            return '';
+        }
+    }
 //                       _         _                     _ _
 //   _____   _____ _ __ | |_ ___  | |__   __ _ _ __   __| | | ___ _ __ ___
 //  / _ \ \ / / _ \ '_ \| __/ __| | '_ \ / _` | '_ \ / _` | |/ _ \ '__/ __|
@@ -869,15 +1073,15 @@ class MUDEngine {
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
         const oPlayer = this.getEntity(idPlayer);
-        this._events.emit('player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
+        this._events.emit('player-event', { id: oPlayer.uid, message: util.format(sModEvent, ...aModParams)});
     }
 
     notifyMapChange (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         // récuperer les infos du joeur (position)
         // récupérer les infos du monde / de l'étage
-        const map = {{{{{{}}}}}};
-        this._events.emit('map-change-event', { id: oPlayer.id, map: { xxxxx }});
+        const map = {};
+        this._events.emit('ui-change-event', { id: oPlayer.uid, map});
     }
 
     /**
@@ -893,7 +1097,7 @@ class MUDEngine {
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
         const oPlayer = this.getEntity(idPlayer);
-        this._events.emit('player-event', { id: oPlayer.id, type: 'success', message: util.format(sModEvent, ...aModParams)});
+        this._events.emit('player-event', { id: oPlayer.uid, type: 'success', message: util.format(sModEvent, ...aModParams)});
     }
 
     /**
@@ -910,25 +1114,24 @@ class MUDEngine {
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
         const oPlayer = this.getEntity(idPlayer);
-        this._events.emit('player-event', { id: oPlayer.id, type: 'failure', message: util.format(sModEvent, ...aModParams)});
+        this._events.emit('player-event', { id: oPlayer.uid, type: 'failure', message: util.format(sModEvent, ...aModParams)});
     }
 
     /**
      * Comme notify player, mais pour tous les autres joueurs de la pièce
-     * @param idRoom {string} identifiant pièce
      * @param idPlayer {string} identifiant joueur
      * @param sEvent {string} chaine pleine ou bien alias de chaine. des token %s peut etre présent et seront
      * remplacé par les paramètre suivants
      * @param params {...string} paramètre de substitution
      */
-    notifyRoom (idRoom, idPlayer, sEvent, ...params) {
+    notifyRoom (idPlayer, sEvent, ...params) {
+        const idRoom = this.getEntity(idPlayer).location;
         const aModParams = this._mapParameters(params);
         const sModEvent = this._mapParameters(sEvent);
         const aPlayers = this.getRoomEntities(idRoom, 'player');
-        aPlayers.forEach(({ id } ) => {
+        aPlayers.forEach(({ id, entity }) => {
             if (id !== idPlayer) {
-                const oPlayer = this.getEntity(id);
-                this._events.emit('other-player-event', { id: oPlayer.id, message: util.format(sModEvent, ...aModParams)});
+                this._events.emit('other-player-event', { id: entity.uid, message: util.format(sModEvent, ...aModParams)});
             }
         })
     }
@@ -1045,16 +1248,29 @@ class MUDEngine {
     renderPlayerItemsInRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
-        const aItems = this.getRoomEntities(idRoom, 'item');
+        return this.renderInventory(this.getRoomEntities(idRoom, 'item'), this.getString('ui.items'));
+    }
+
+    renderPlayerPlaceableInRoom (idPlayer) {
+        const oPlayer = this.getEntity(idPlayer);
+        const idRoom = oPlayer.location;
+        return this.renderInventory(this.getRoomEntities(idRoom, 'placeable'), this.getString('ui.placeable'));
+    }
+
+    renderInventory (aItems, sTitle) {
         const aOutput = [];
-        for (let { id, lid } of aItems) {
-            const oItem = this.getEntity(id);
-            aOutput.push(' - [' + lid + '] ' + oItem.name + (oItem.blueprint.stackable ? ' (x' + oItem.stack + ')' : ''));
+        for (let { entity, lid } of aItems) {
+            const sItemName = entity.name;
+            aOutput.push(' - [' + lid + '] ' + sItemName);
         }
         if (aOutput.length > 0) {
-            aOutput.unshift('{imp ' + this.getString('ui.objects') + '}');
+            aOutput.unshift('{imp ' + sTitle + '}');
         }
         return aOutput;
+    }
+
+    renderPlayerInventory (idPlayer) {
+        return this.renderInventory(this.getInventoryEntities(idPlayer), this.getString('ui.inventory'));
     }
 
     /**
@@ -1071,7 +1287,7 @@ class MUDEngine {
             aOutput.push('{imp ' + this.getString('ui.players') + '}');
             for (let { id, lid } of aOtherPlayers) {
                 const oOtherPlayer = this.getEntity(id);
-                aOutput.push('● [' + lid + '] ' + oOtherPlayer.name);
+                aOutput.push('- [' + lid + '] ' + oOtherPlayer.name);
             }
         }
         return aOutput;
@@ -1101,6 +1317,7 @@ class MUDEngine {
         aOutput.push(...this.renderPlayerExits(idPlayer));
         // objets contenus dans la pièce
         aOutput.push(...this.renderPlayerItemsInRoom(idPlayer));
+        aOutput.push(...this.renderPlayerPlaceableInRoom(idPlayer));
         // autres joueurs
         aOutput.push(...this.renderOtherPlayersInRoom(idPlayer));
         return aOutput;

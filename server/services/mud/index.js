@@ -1,13 +1,11 @@
 const ServiceAbstract = require('@laboralphy/ws-service/abstract');
-const util = require('util');
 const path = require('path');
-const Scriptorium = require('../../../libs/scriptorium');
+const Logger = require('../../../libs/logger');
 const MUDEngine = require('../../../libs/mud-engine');
 const STATE = require('./w3000.json');
 
 class ServiceMUD extends ServiceAbstract {
     init() {
-        const sc = new Scriptorium();
         const m = new MUDEngine();
         m.state = STATE;
         m.events.on('player-event', ({ id, message }) => {
@@ -19,16 +17,34 @@ class ServiceMUD extends ServiceAbstract {
         m.events.on('admin-event', ({ message }) => {
             console.log('[admin]', message);
         });
-        m.events.on('map-change-event', ({ id, map }) => {
+        m.events.on('ui-change-event', ({ id, map }) => {
             this.socketEmit(id, 'UI_UPADTE', { section: 'map', map });
         });
-        this._scriptorium = sc;
         this._mud = m;
-        const SCRIPT_LOADED_STR = '[scripts] scripts loaded';
-        console.time(SCRIPT_LOADED_STR)
-        sc.index(path.resolve(__dirname, '../../command.d')).then(tree => {
-            console.timeEnd(SCRIPT_LOADED_STR);
+        const nTimeStart = Date.now();
+        m.loadScripts(path.resolve(__dirname, '../../command.d')).then(tree => {
+            const nTime = Date.now() - nTimeStart;
+            const t = nTime >= 1000 ? (Math.floor(nTime / 100) / 10).toString() + ' s' : nTime.toString() + ' ms';
+            Logger.log('[scripts]', tree.length, 'scripts loaded in', t);
         });
+    }
+
+    displayCommandHelp (sCommand) {
+        const aOutput = [];
+        const h = this._mud._scriptorium.displayHelp(sCommand);
+        if (h) {
+            h.forEach(({ section, text }) => {
+                aOutput.push('{imp ' + section + '}');
+                if (Array.isArray(text)) {
+                    aOutput.push(...text);
+                } else {
+                    aOutput.push(text);
+                }
+            });
+        } else {
+            aOutput.push('Unknown command : ' + sCommand);
+        }
+        return aOutput;
     }
 
     connectClient(client) {
@@ -36,24 +52,9 @@ class ServiceMUD extends ServiceAbstract {
         const socket = client.socket;
         const uid = client.id;
         const pid = this._mud.getPlayerId(uid);
-
         const print = message => this.socketEmit(uid, 'TERM_PRINT',{ screen: null, content: message });
         const quit = () => socket.disconnect();
-        const help = sCommand => {
-            const h = this._scriptorium.displayHelp(sCommand);
-            if (h) {
-                h.forEach(({ section, text }) => {
-                    print('{imp ' + section + '}');
-                    if (Array.isArray(text)) {
-                        text.forEach(print);
-                    } else {
-                        print(text);
-                    }
-                });
-            } else {
-                print('Unknown command : ' + sCommand);
-            }
-        }
+        const help = sCommand => this.displayCommandHelp(sCommand).forEach(print);
 
         const context = {
             print,
@@ -65,19 +66,17 @@ class ServiceMUD extends ServiceAbstract {
         };
 
         socket.onAny((sCommand, args) => {
-            if (sCommand.startsWith('CMD::')) {
-                const sScript = sCommand.substr(5);
-                if (this._scriptorium.scriptExists(sScript)) {
-                    this
-                      ._scriptorium
-                      .runScript(sScript, context, ...args)
-                      .catch(e => {
-                          console.error(e);
-                          this.getClient(uid).socket.disconnect();
-                      });
-                } else {
-                    print('{neg Unknown command : ' + sScript + '}');
+            try {
+                if (sCommand.startsWith('CMD::')) {
+                    const sScript = sCommand.substr(5);
+                    const bValidCommand = this._mud.command(context, sScript, args);
+                    if (!bValidCommand) {
+                        print('{neg Unknown command : ' + sScript + '}')
+                    }
                 }
+            } catch (e) {
+                console.error(e);
+                this.getClient(uid).socket.disconnect();
             }
         });
     }

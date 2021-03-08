@@ -42,6 +42,42 @@
     "nav"
   ],
   "definitions": {
+    "content": {
+      "type": "array",
+      "title": "Entités par défaut",
+      "description": "Liste des entité par défaut à faire spawner lors de la création de la pièce/entité.",
+      "default": [],
+      "examples": [
+        [
+          {
+            "blueprint": "blueprint::crea0001"
+          }
+        ]
+      ],
+      "additionalItems": true,
+      "items": {
+        "type": "object",
+        "title": "Entité par défaut",
+        "required": [
+          "blueprint"
+        ],
+        "properties": {
+          "blueprint": {
+            "type": "string",
+            "title": "Blueprint de l'entité"
+          },
+          "stack": {
+            "type": "integer",
+            "title": "Taille du stack",
+            "description": "si l'entité est un objet empilable, on indique ici le nombre d'exemplaires de la pile"
+          },
+          "content": {
+            "$ref": "#/definitions/content"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "navigation": {
       "type": "object",
       "title": "Une issue",
@@ -271,8 +307,8 @@
       },
       "additionalProperties": false
     },
-    "defaultEntities": {
-      "$id": "#/properties/defaultEntities",
+    "content": {
+      "$id": "#/properties/content",
       "type": "array",
       "title": "Entités par défaut",
       "description": "Liste des entité par défaut à faire spawner lors de la création de la pièce.",
@@ -286,7 +322,7 @@
       ],
       "additionalItems": true,
       "items": {
-        "$id": "#/properties/defaultEntities/items",
+        "$id": "#/properties/content/items",
         "type": "object",
         "title": "Entité par défault",
         "required": [
@@ -294,15 +330,18 @@
         ],
         "properties": {
           "blueprint": {
-            "$id": "#/properties/defaultEntities/blueprint",
+            "$id": "#/properties/content/blueprint",
             "type": "string",
             "title": "Blueprint de l'entité"
           },
           "stack": {
-            "$id": "#/properties/defaultEntities/stack",
+            "$id": "#/properties/content/stack",
             "type": "integer",
             "title": "Taille du stack",
             "description": "si l'entité est un objet empilable, on indique ici le nombre d'exemplaires de la pile"
+          },
+          "content": {
+            "$ref": "#/definitions/content"
           }
         },
         "additionalProperties": false

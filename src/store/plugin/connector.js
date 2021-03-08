@@ -113,7 +113,14 @@ class CommandRepository {
         this._connector.events.on('UI_UPDATE', async payload => {
             switch (payload.section) {
                 case 'map':
-                    await this._store.dispatch('ui', 'updateMap', {map: payload.map});
+                    await this._store.dispatch('ui', 'updateMap', payload);
+                    break;
+
+                case 'inv':
+                    await this._store.dispatch('ui', 'updateInv', payload);
+                    break;
+
+                default:
                     break;
             }
 

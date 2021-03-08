@@ -1,3 +1,7 @@
+const STRINGS = {
+    "invalidPlayerName": "Ce nom est invalide. Un nom doit comporter entre 2 et 20 caractères sans espace."
+};
+
 /**
  * Un utilisateur se connecte au systeme
  * @param command {object} systeme de commandes

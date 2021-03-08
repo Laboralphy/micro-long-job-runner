@@ -1,12 +1,40 @@
 const STRINGS = {
-  'youFound': 'Vous rammassez %s.',
-  'youFoundStack': 'Vous rammassez %s (x%s).',
-  'someoneFoundHere': "%s fouille dans la pièce et déniche %s.",
-  'someoneFound': '%s fouille dans %s et déniche %s.',
-  'itemNotInContainer': "L'objet que vous voulez prendre n'est pas dans le contenant.",
-  'itemNotInRoom': "Ceci ne correspond à aucun objet visible dans cette pièce.",
-  'containerTooFar': "Le dernier contenant ouvert n'est pas dans cette pièce."
+    youFoundHere: 'Vous rammassez %s.',
+    youFoundCont: 'Vous fouillez %s, et vous prenez %s.',
+    someoneFoundHere: "%s fouille dans la pièce et déniche %s.",
+    someoneFoundCont: '%s fouille dans %s et déniche %s.',
+    itemNotInCont: "Pas d'objet identifié [%s] dans %s.",
+    itemNotInRoom: "Pas d'objet identifié [%s] dans cette pièce.",
+    containerTooFar: "Le dernier contenant ouvert n'est pas ici.",
+    mustBeItem: "Vous ne pouvez pas ramasser ceci.",
+    mustBeMore: "Vous ne ramassez rien."
 };
+
+function help () {
+    return [
+        {
+            section: 'Commande',
+            text: "Take - action de prendre un objet."
+        },
+        {
+            section: 'Syntaxe',
+            text: 'take {i objet} [{i nombre}]'
+        },
+        {
+            section: 'Description',
+            text: [
+                "Cette commande permet de prendre un objet visible dans la pièce où l'on se trouve ou dans le contenant que l'on vient d'ouvrir.",
+                "Si l'objet est empilable, on peut spécifier le nombre d'exemplaires qu'on souhaite prendre en le spécifiant dans le deuxième paramètre.",
+                "Si le joueur a récemment ouvert un contenant (coffre, armoire...) à l'aide de la commande {link \"help open\" open}, l'objet sera pris depuis contenant.",
+                "Si le joueur a récemment fermé un contenant à l'aide de la commande {link \"help close\" close}, ou s'il vient d'entrer dans une pièce, l'objet sera pris directement parmis ceux qui traînent dans la pièce."
+            ]
+        },
+        {
+            section: "Paramètres",
+            text: "objet : Un identifiant local d'objet. Ces identifiants sont visibles grâce à la commande {link \"help look\", look}. Les objets enfermés dans un contenant sont visibles avec la commande {link \"help open\" open}."
+        }
+    ];
+}
 
 /**
  *
@@ -18,46 +46,37 @@ const STRINGS = {
  * @param count
  */
 function main ({ mud, print, command, pid }, lid, count = Infinity) {
-  // vérifions si l'objet recherché est dans la pièce
-  const idRoom = mud.getEntity(pid).location;
-  let oObject = mud.getRoomLocalEntity(idRoom, lid);
-  const oPlayer = mud.getEntity(pid);
-  if (oObject) {
-    // l'objet est bien dans la pièce
-    mud.takeItem(pid, oObject.id, count);
-    mud.notifyPlayer(pid, STRINGS.youFound, oObject.name);
-    mud.notifyRoom(idRoom, pid, STRINGS.someoneFoundHere, oPlayer.name, oObject.name);
-  } else if (oPlayer.data.mostRecentLookedContainer) {
-    // l'objet n'était pas dans la pièce
-    // peut etre dans le dernier contenant ouvert ?
-    const idLastContainer = oPlayer.data.mostRecentLookedContainer;
-    const oContainer = mud.getEntity(idLastContainer);
-    if (oContainer.location === idRoom) {
-      // le dernier contenant ouvert, est bien dans la même pièce que nous
-      oObject = mud.getInventoryLocalEntity(idLastContainer, lid);
-      if (oObject) {
-        // l'objet voulu est bien dedans
-        mud.takeItem(idLastContainer, oObject.id, count);
-        if (oObject.blueprint.stackable) {
-          mud.notifyPlayer(pid, STRINGS.youFoundStack, oObject.name, count);
+    if (count < 1) {
+        mud.notifyPlayerFailure(pid, STRINGS.mustBeMore);
+        return;
+    }
+
+    const oObject = mud.getLocalEntity(pid, lid);
+    if (oObject === null || (oObject && oObject.blueprint.type !== 'item')) {
+        mud.notifyPlayerFailure(pid, STRINGS.mustBeItem);
+        return;
+    }
+    const oPlayer = mud.getEntity(pid);
+    const cc = mud.getPlayerCurrentContainer(pid);
+    const oCC = cc ? mud.getEntity(cc) : null;
+    if (oObject && oObject.blueprint.type === 'item') {
+        const oTransfer = mud.moveItem(oObject.id, pid, count);
+        if (oCC) {
+            mud.notifyPlayer(pid, STRINGS.youFoundCont, oCC.name, oTransfer.name);
+            mud.notifyRoom(pid, STRINGS.someoneFoundCont, oPlayer.name, oCC.name, oTransfer.name);
         } else {
-          mud.notifyPlayer(pid, STRINGS.youFound, oObject.name);
+            mud.notifyPlayer(pid, STRINGS.youFoundHere, oTransfer.name);
+            mud.notifyRoom(pid, STRINGS.someoneFoundHere, oPlayer.name, oTransfer.name);
         }
-        mud.notifyRoom(idRoom, pid, STRINGS.someoneFound, oPlayer.name, oContainer.name, oObject.name);
-      } else {
+    } else {
         // le lid ne correspond pas à un objet valide
         // l'objet voulu n'est pas dedans
-        mud.notifyPlayerFailure(pid, STRINGS.itemNotInContainer);
-      }
-    } else {
-      // on est loin du container
-      mud.notifyPlayerFailure(pid, STRINGS.containerTooFar);
+        if (oCC) {
+            mud.notifyPlayerFailure(pid, STRINGS.itemNotInCont, lid, oCC.name);
+        } else {
+            mud.notifyPlayerFailure(pid, STRINGS.itemNotInRoom, lid);
+        }
     }
-  } else {
-    // l'objet recherché ne correspond pas à un objet au sol
-    // ni a un objet contenu dans le dernier content ouvert
-    mud.notifyPlayerFailure(pid, STRINGS.itemNotInRoom);
-  }
 }
 
-module.exports = { main };
+module.exports = {main, help};
