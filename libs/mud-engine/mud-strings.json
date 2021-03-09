@@ -8,6 +8,8 @@
     "nw": "nord-ouest",
     "se": "sud-est",
     "sw": "sud-ouest",
+    "u": "niveau supérieur",
+    "d": "niveau inférieur",
     "an": "au nord",
     "ae": "à l'est",
     "aw": "à l'ouest",
@@ -16,6 +18,8 @@
     "anw": "au nord-ouest",
     "ase": "au sud-est",
     "asw": "au sud-ouest",
+    "au": "au niveau supérieur",
+    "ad": "au niveau inférieur",
     "vn": "vers le nord",
     "ve": "vers l'est",
     "vw": "vers l'ouest",
@@ -24,7 +28,9 @@
     "vnw": "vers le nord-ouest",
     "vse": "vers le sud-est",
     "vsw": "vers le sud-ouest",
-    "invalid": "Direction invalide : \"%s\" - Les directions valides sont : n, e, w, s, ne, nw, se, sw."
+    "vu": "vers le niveau supérieur",
+    "vd": "vers le niveau inférieur",
+    "invalid": "Direction invalide : \"%s\" - Les directions valides sont : n, e, w, s, ne, nw, se, sw, u, d."
   },
   "errors": {
     "localIdInvalid": "L'identifiant \"%s\" ne correspond à rien, ici.",

@@ -156,7 +156,74 @@
       "examples": [
         false
       ]
+    },
+    "lock": {
+      "type": "object",
+      "title": "Verrou",
+      "description": "Une structure permettant de définir un verrou sur l'objet",
+      "default": {},
+      "examples": [
+        {
+          "difficulty": 3,
+          "key": "k3011",
+          "locked": true,
+          "code": "1234",
+          "discardKey": true
+        }
+      ],
+      "required": [
+        "locked"
+      ],
+      "properties": {
+        "difficulty": {
+          "title": "Difficulté",
+          "description": "Une valeur de la difficulté à surmonter pour crocheter la serrure.",
+          "type": "integer",
+          "default": 0,
+          "examples": [
+            3
+          ]
+        },
+        "key": {
+          "type": "string",
+          "title": "Identifiant clé",
+          "description": "Le tag de la clé nécessaire pour déverrouiller la serrure.",
+          "default": "",
+          "examples": [
+            "k3011"
+          ]
+        },
+        "locked": {
+          "type": "boolean",
+          "title": "état du verrou",
+          "description": "True = ouvert, false = fermé",
+          "default": false,
+          "examples": [
+            true
+          ]
+        },
+        "code": {
+          "type": "string",
+          "title": "Code d'accès",
+          "description": "Le code ou mot de passe à fournir pour pouvoir passer",
+          "default": "",
+          "examples": [
+            "1234"
+          ]
+        },
+        "discardKey": {
+          "type": "boolean",
+          "title": "Suppression auto de la clé",
+          "description": "Le fait de déverrouiller la porte supprime la clé de l'inventaire du personnage ?",
+          "default": false,
+          "examples": [
+            true
+          ]
+        }
+      },
+      "additionalProperties": false
     }
+
   },
   "additionalProperties": false
 }

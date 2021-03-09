@@ -22,6 +22,14 @@ class DisposableIdRegistry {
         this._registry = [];
         this._lastId = 0;
         this._prefix = sPrefix;
+        this._bufferSize = 0
+    }
+    get bufferSize () {
+        return this._bufferSize;
+    }
+
+    set bufferSize (value) {
+        this._bufferSize = value;
     }
 
     get prefix () {
@@ -33,7 +41,7 @@ class DisposableIdRegistry {
     }
 
     getId () {
-        if (this._registry.length > 0) {
+        if (this._registry.length > this._bufferSize) {
             return this._registry.shift();
         } else {
             ++this._lastId;

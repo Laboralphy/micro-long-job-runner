@@ -13,9 +13,9 @@
           ></Terminal>
         </div>
       </div>
-      <div class="flex-item theme" data-theme="gray">
-        <SidePanel></SidePanel>
-      </div>
+<!--      <div class="flex-item theme" data-theme="gray">-->
+<!--        <SidePanel></SidePanel>-->
+<!--      </div>-->
     </div>
   </div>
 </template>

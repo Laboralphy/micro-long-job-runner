@@ -25,13 +25,13 @@ function help () {
             text: [
                 "Cette commande permet de se débarrasser d'un objet de son inventaire.",
                 "Si l'objet est empilable, on peut spécifier le nombre d'exemplaires qu'on souhaite jeter en le spécifiant dans le deuxième paramètre.",
-                "Si le joueur a récemment ouvert un contenant (coffre, armoire...) à l'aide de la commande {link \"help open\" open}, l'objet sera déposé dans ce contenant.",
+                "Si le joueur a récemment ouvert un contenant (coffre, armoire...) à l'aide de la commande {link \"help inv\" inv}, l'objet sera déposé dans ce contenant.",
                 "Si le joueur a récemment fermé un contenant à l'aide de la commande {link \"help close\" close}, ou s'il vient d'entrer dans une pièce, l'objet sera déposé directement quelque-part dans la pièce."
             ]
         },
         {
             section: "Paramètres",
-            text: "objet : Un identifiant local d'objet. Ces identifiants sont visibles quand on lance la commande {link \"inv\" inv}."
+            text: "objet : Un identifiant local d'objet. Ces identifiants sont visibles à l'aide de la commande {link \"inv\" inv}."
         }
     ];
 }

@@ -1,5 +1,4 @@
 const util = require('util');
-const path = require('path');
 const Events = require('events');
 const { Validator } = require('jsonschema');
 const validator = new Validator();
@@ -13,7 +12,7 @@ const SCHEMAS = {
 };
 const { KeyNotFoundError, InvalidSchemasError } = require('./errors');
 
-const CODE_DIRECTIONS = ['n', 'e', 'w', 's', 'ne', 'nw', 'se', 'sw'];
+const CODE_DIRECTIONS = ['n', 'e', 'w', 's', 'ne', 'nw', 'se', 'sw', "u", "d"];
 
 class MUDEngine {
     constructor() {
@@ -331,8 +330,11 @@ class MUDEngine {
             // on a profite pour coller tous les objet par default
             const aContent = oRoom.content;
             if (aContent) {
-                aContent.forEach(({ blueprint, stack = 1, content = [] }) => {
+                aContent.forEach(({ blueprint, tag = null, stack = 1, content = [] }) => {
                     const oEntity = this.createEntity(blueprint, idRoom, stack);
+                    if (tag) {
+                        oEntity.tag = tag;
+                    }
                     if (oEntity.inventory) {
                         this.setEntityContent(oEntity, content);
                     }
@@ -342,14 +344,6 @@ class MUDEngine {
         return oStorage[idRoom];
     }
 
-    setEntityContent (oEntity, aContent) {
-        aContent.forEach(({ blueprint, stack = 1, content = [] }) => {
-            const oSubEntity = this.createEntity(blueprint, oEntity.id, stack);
-            if (Array.isArray(content) && oSubEntity.inventory) {
-                this.setEntityContent(oSubEntity, content);
-            }
-        });
-    }
 
     /**
      * A partir d'un container donné, établie une liste ordonnée d'entité contenues
@@ -369,7 +363,7 @@ class MUDEngine {
         }
         return aEntities
             .sort((a, b) => a.i - b.i)
-            .map(({ id, lid }) => ({ lid, entity: this.getEntity(id) }));
+            .map(({ id, lid }) => ({ lid, id, entity: this.getEntity(id) }));
     }
 
     /**
@@ -424,29 +418,34 @@ class MUDEngine {
     }
 
     /**
-     * cherche et renvoie un objet possédant un tag particulier et se trouvant dans l'inventaire de l'entité spécifiée
-     * @param sTag
-     * @param idEntity
-     * @param n
-     * @returns {null|*}
+     * cherche et renvoie un tableau contenant tous les objet possédant un tag particulier et se trouvant
+     * dans l'inventaire de l'entité spécifiée.
+     * @param sTag {string}
+     * @param idLocation {string}
+     * @returns {array}
      */
-    findItemTag (sTag, idEntity, n = 0) {
-        const oEntity = this.getEntity(idEntity);
-        const oContainer = oEntity.inventory;
-        for (let idItem in oContainer) {
-            if (oContainer.hasOwnProperty(idItem)) {
-                const oItem = this.getEntity(idItem);
-                if (oItem.tag === sTag) {
-                    if (n-- === 0) {
-                        return oItem.id;
-                    }
-                }
-            }
+    findItemTag (sTag, idLocation) {
+        let aContainer;
+        if (this.isRoomExist(idLocation)) {
+            aContainer = this.getRoomEntities(idLocation);
+        } else if (this.isEntityExist(idLocation)) {
+            aContainer = this.getInventoryEntities(idLocation);
         }
-        return null;
+        const aItems = [];
+        const aInventories = [];
+        aContainer.forEach(({ entity }) => {
+            if (entity.tag === sTag) {
+                aItems.push(entity);
+            }
+            if (entity.inventory) {
+                aInventories.push(entity.id);
+            }
+        });
+        aInventories.forEach(idInvItem => {
+            aItems.push(...this.findItemTag(sTag, idInvItem));
+        });
+        return aItems;
     }
-
-
 
 //       _               _    _
 //   ___| |__   ___  ___| | _(_)_ __   __ _ ___
@@ -593,7 +592,8 @@ class MUDEngine {
             secret: false,
             dcSearch: 0,
             visible: false,
-            destination: ''
+            destination: '',
+            discardKey: false
         };
         if (valid) {
             oStatus.lockable = 'lock' in oDoor;
@@ -607,6 +607,7 @@ class MUDEngine {
                         : Infinity;
                 oStatus.key = oDoorLock.key || '';
                 oStatus.code = oDoorLock.code || '';
+                oStatus.discardKey = oDoorLock.discardKey;
             }
             oStatus.secret = this.isDoorSecret(idRoom, sDirection);
             oStatus.visible = oStatus.secret && this.hasPlayerSpottedDoor(idPlayer, sDirection) || !oStatus.secret;
@@ -1123,6 +1124,25 @@ class MUDEngine {
             return '';
         }
     }
+
+    /**
+     * Définition du contenu d'un objet pourvu d'un inventaire
+     * @param oEntity
+     * @param aContent
+     */
+    setEntityContent (oEntity, aContent) {
+        aContent.forEach(({ blueprint, tag = null, stack = 1, content = [] }) => {
+            const oSubEntity = this.createEntity(blueprint, oEntity.id, stack);
+            if (tag !== null) {
+                oSubEntity.tag = tag;
+            }
+            if (Array.isArray(content) && oSubEntity.inventory) {
+                this.setEntityContent(oSubEntity, content);
+            }
+        });
+    }
+
+
 //                       _         _                     _ _
 //   _____   _____ _ __ | |_ ___  | |__   __ _ _ __   __| | | ___ _ __ ___
 //  / _ \ \ / / _ \ '_ \| __/ __| | '_ \ / _` | '_ \ / _` | |/ _ \ '__/ __|
@@ -1236,6 +1256,38 @@ class MUDEngine {
 //  |_|  \___|_| |_|\__,_|\___|_|    |___/\__|_|  |_|_| |_|\__, |___/
 //                                                         |___/
 
+    renderCapitalize (sText) {
+        return sText.charAt(0).toUpperCase() + sText.substr(1);
+    }
+
+    /**
+     * Affichage d'un texte important
+     * @param sText {string}
+     * @return {string}
+     */
+    renderImp (sText) {
+        return util.format('{imp %s}', sText);
+    }
+
+    /**
+     * Affichage d'un texte important
+     * @param sText {string}
+     * @return {string}
+     */
+    renderInfo (sText) {
+        return util.format('{info %s}', sText);
+    }
+
+    /**
+     * Affichage d'un objet d'inventaire
+     * @param lid {string}
+     * @param sName {string}
+     * @returns {string}
+     */
+    renderLid (lid, sName) {
+        return util.format(' - [%s] %s', lid, sName);
+    }
+
     /**
      * Produit une chaine affichage pour rendre compte de l'état d'une des issues d'une pièces
      * @param idRoom {string} identifiant de la pièce contenant la porte
@@ -1245,13 +1297,11 @@ class MUDEngine {
      */
     renderDoor (idRoom, sDirection, oDoorStatus) {
         const oDoor = this.getDoor(idRoom, sDirection);
-        const sDirStr = this.getString('directions.v' + sDirection);
+        const sDirStr = this.renderCapitalize(this.getString('directions.v' + sDirection));
         const oNextRoom = this.getRoom(oDoor.to);
+        const sDirDesc = 'desc' in oDoor ? oDoor.desc : this.getString('nav.defaultDesc', oNextRoom.name);
         const a = [
-            ' - [' + sDirection + ']',
-            sDirStr.charAt(0).toUpperCase() + sDirStr.substr(1),
-            ':',
-            'desc' in oDoor ? oDoor.desc : this.getString('nav.defaultDesc', oNextRoom.name)
+            this.renderLid(sDirection, sDirStr + ' : ' + sDirDesc)
         ];
         const b = [];
         if (oDoorStatus.locked) {
@@ -1260,7 +1310,7 @@ class MUDEngine {
             if (sCode !== '') {
                 b.push(this.getString('nav.doorCode'));
             }
-        } else if (oDoorStatus.lockable && oDoorStatus.key) {
+        } else if (oDoorStatus.lockable && (oDoorStatus.key || oDoorStatus.code)) {
             b.push(this.getString('nav.doorLockable'));
         }
         if (b.length > 0) {
@@ -1282,7 +1332,7 @@ class MUDEngine {
         // secteur
         // afficher les info du secteur : le joueur viens d'y pénétrer
         const oSector = this.getSector(oRoom.sector);
-        aOutput.push('{imp ' + oSector.name + '}', ...oSector.desc);
+        aOutput.push(this.renderImp(oSector.name), ...oSector.desc);
         return aOutput;
     }
 
@@ -1297,7 +1347,7 @@ class MUDEngine {
         const oRoom = this.getRoom(idRoom);
         const aOutput = [];
         // description de la pièces
-        aOutput.push('{imp ' + oRoom.name + '}', ...oRoom.desc);
+        aOutput.push(this.renderImp(oRoom.name), ...oRoom.desc);
         return aOutput;
     }
 
@@ -1312,7 +1362,7 @@ class MUDEngine {
         const oRoom = this.getRoom(idRoom);
         const aOutput = [];
         // issues
-        aOutput.push('{imp ' + this.getString('ui.exits') + '}');
+        aOutput.push(this.renderImp(this.getString('ui.exits')));
         for (const sDirection in oRoom.nav) {
             if (oRoom.nav.hasOwnProperty(sDirection)) {
                 const oDoorStatus = this.getPlayerDoorStatus(idPlayer, sDirection);
@@ -1332,24 +1382,30 @@ class MUDEngine {
     renderPlayerItemsInRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
-        return this.renderInventory(this.getRoomEntities(idRoom, 'item'), this.getString('ui.items'));
+        const aEntities = this.getRoomEntities(idRoom, 'item');
+        return aEntities.length > 0
+            ? this.renderInventory(this.getRoomEntities(idRoom, 'item'), this.getString('ui.items'))
+            : [];
     }
 
     renderPlayerPlaceableInRoom (idPlayer) {
         const oPlayer = this.getEntity(idPlayer);
         const idRoom = oPlayer.location;
-        return this.renderInventory(this.getRoomEntities(idRoom, 'placeable'), this.getString('ui.placeable'));
+        const aEntities = this.getRoomEntities(idRoom, 'placeable');
+        return aEntities.length > 0
+            ? this.renderInventory(this.getRoomEntities(idRoom, 'placeable'), this.getString('ui.placeable'))
+            : [];
     }
 
     renderInventory (aItems, sTitle) {
         const aOutput = [];
-        aOutput.push('{imp ' + sTitle + '}');
+        aOutput.push(this.renderImp(sTitle));
         for (let { entity, lid } of aItems) {
             const sItemName = entity.name;
-            aOutput.push(' - [' + lid + '] ' + sItemName);
+            aOutput.push(this.renderLid(lid, sItemName));
         }
         if (aItems.length === 0) {
-            aOutput.push('{info ' + this.getString('ui.empty') + '}');
+            aOutput.push(this.renderInfo(this.getString('ui.empty')));
         }
         return aOutput;
     }
@@ -1369,10 +1425,10 @@ class MUDEngine {
         const aOtherPlayers = this.getRoomEntities(idRoom, 'player').filter(({ id }) => id !== idPlayer);
         const aOutput = [];
         if (aOtherPlayers.length > 0) {
-            aOutput.push('{imp ' + this.getString('ui.players') + '}');
+            aOutput.push(this.renderImp(this.getString('ui.players')));
             for (let { id, lid } of aOtherPlayers) {
                 const oOtherPlayer = this.getEntity(id);
-                aOutput.push('- [' + lid + '] ' + oOtherPlayer.name);
+                aOutput.push(this.renderLid(lid, oOtherPlayer.name));
             }
         }
         return aOutput;

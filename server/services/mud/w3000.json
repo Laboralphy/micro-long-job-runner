@@ -249,7 +249,8 @@
           "lock": {
             "difficulty": 3,
             "key": "k3011",
-            "locked": true
+            "locked": true,
+            "discardKey": true
           }
         }
       }

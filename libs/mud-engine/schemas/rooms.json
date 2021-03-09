@@ -71,6 +71,12 @@
             "title": "Taille du stack",
             "description": "si l'entité est un objet empilable, on indique ici le nombre d'exemplaires de la pile"
           },
+          "tag": {
+            "$id": "#/properties/content/tag",
+            "type": "string",
+            "title": "Tag personnalisé",
+            "description": "si l'entité possède un tag personnaliser il sera possible de l'identifier grace à ce tag, sans connaitre sa localisation ni son id"
+          },
           "content": {
             "$ref": "#/definitions/content"
           }
@@ -308,44 +314,7 @@
       "additionalProperties": false
     },
     "content": {
-      "$id": "#/properties/content",
-      "type": "array",
-      "title": "Entités par défaut",
-      "description": "Liste des entité par défaut à faire spawner lors de la création de la pièce.",
-      "default": [],
-      "examples": [
-        [
-          {
-            "blueprint": "blueprint::crea0001"
-          }
-        ]
-      ],
-      "additionalItems": true,
-      "items": {
-        "$id": "#/properties/content/items",
-        "type": "object",
-        "title": "Entité par défault",
-        "required": [
-          "blueprint"
-        ],
-        "properties": {
-          "blueprint": {
-            "$id": "#/properties/content/blueprint",
-            "type": "string",
-            "title": "Blueprint de l'entité"
-          },
-          "stack": {
-            "$id": "#/properties/content/stack",
-            "type": "integer",
-            "title": "Taille du stack",
-            "description": "si l'entité est un objet empilable, on indique ici le nombre d'exemplaires de la pile"
-          },
-          "content": {
-            "$ref": "#/definitions/content"
-          }
-        },
-        "additionalProperties": false
-      }
+      "$ref": "#/definitions/content"
     },
     "data": {
       "$id": "#/properties/data",

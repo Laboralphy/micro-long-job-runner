@@ -35,6 +35,62 @@ function createState1 () {
                 "buc": "u",
                 "tag": "",
                 "inventory": false
+            },
+            "blueprint::chest1": {
+                "type": "placeable",
+                "subtype": "-",
+                "name": "Coffre en bois",
+                "desc": [
+                    "Petit coffre en bois, long de 40 cm environ."
+                ],
+                "weight": 2,
+                "stackable": false,
+                "identified": true,
+                "buc": "u",
+                "tag": "chest1",
+                "inventory": true
+            },
+            "blueprint::gem1": {
+                "type": "item",
+                "subtype": "gem",
+                "name": "Grenat",
+                "desc": [
+                    "Petite pierre rouge."
+                ],
+                "weight": 0.2,
+                "stackable": true,
+                "identified": true,
+                "buc": "u",
+                "tag": "gem1",
+                "inventory": false
+            },
+            "blueprint::gem2": {
+                "type": "item",
+                "subtype": "gem",
+                "name": "Saphir",
+                "desc": [
+                    "Petite pierre bleue."
+                ],
+                "weight": 0.2,
+                "stackable": true,
+                "identified": true,
+                "buc": "u",
+                "tag": "gem2",
+                "inventory": false
+            },
+            "blueprint::bag1": {
+                "type": "item",
+                "subtype": "bag",
+                "name": "Sacoche en cuir",
+                "desc": [
+                    "Sacoche en cuir."
+                ],
+                "weight": 1,
+                "stackable": false,
+                "identified": true,
+                "buc": "u",
+                "tag": "bag1",
+                "inventory": true
             }
         },
         sectors: {
@@ -87,6 +143,33 @@ function createState2() {
             stack: 100
         }
     )
+    return s;
+}
+
+function createState3() {
+    const s = createState2();
+    s.rooms["room::r1"].content.push(
+        {
+            blueprint: "blueprint::or",
+            stack: 100
+        },
+        {
+            blueprint: "blueprint::chest1",
+            tag: 'grosac',
+            content: [
+                {
+                    blueprint: "blueprint::bag1",
+                    tag: 'sacoche',
+                    content: [
+                        {
+                            blueprint: "blueprint::gem1",
+                            stack: 2
+                        }
+                    ]
+                }
+            ]
+        }
+    );
     return s;
 }
 
@@ -167,7 +250,6 @@ describe('#MUDEngine', function () {
             m.setEntityLocation(pid, 'room::r2');
             expect(m.getEntity(pid).location).toBe('room::r2');
         });
-
     });
 
     describe('checking local id', function () {
@@ -179,7 +261,7 @@ describe('#MUDEngine', function () {
             m.moveItem(oItem1.id, pid);
             const oItem2 = m.getRoomLocalEntity("room::r1", "i2");
             m.moveItem(oItem2.id, pid);
-            expect(m.state.entities['player::x1'].inventory).toEqual({ 'entity::1': 'i1', 'entity::3': 'i2' });
+            expect(m.state.entities['player::x1'].inventory).toEqual({ 'entity::1': 'u1', 'entity::3': 'u2' });
             expect(m.isEntityExist('entity::2')).toBeFalsy();
         });
         it('rammasser deux objets (dont 1 stackable) donne les identifiant locaux i1 et i2', function () {
@@ -191,9 +273,9 @@ describe('#MUDEngine', function () {
             expect(oItem1.name).toBe('Objet diver 1');
             expect(oGP.name).toBe("Pièce d'or (x100)");
             m.moveItem(oItem1.id, pid);
-            expect(m.getInventoryEntities(pid)[0].lid).toBe('i1');
+            expect(m.getInventoryEntities(pid)[0].lid).toBe('u1');
             m.moveItem(oGP.id, pid, 40);
-            expect(m.getInventoryEntities(pid)[1].lid).toBe('i2');
+            expect(m.getInventoryEntities(pid)[1].lid).toBe('u2');
             const oGPInBag = m.getInventoryEntities(pid)[1].entity;
             expect(oGPInBag.stack).toBe(40);
             expect(oGP.stack).toBe(60);
@@ -210,10 +292,20 @@ describe('#MUDEngine', function () {
             const oGP = m.getRoomLocalEntity("room::r1", "i2");
             m.moveItem(oGP.id, pid, 50);
             expect(oGP.stack).toBe(50);
-            const oGPInv = m.getInventoryLocalEntity(pid, 'i1');
+            const oGPInv = m.getInventoryLocalEntity(pid, 'u1');
             m.moveItem(oGPInv.id, 'room::r1', 50);
             expect(oGP.stack).toBe(100);
+        });
+
+        it('ne pas pouvoir mettre un sac A dans un sac B si A contient déja B', function () {
+            const m = new MUDEngine();
+            m.state = createState3();
+            const pid = m.createPlayerEntity('x1', 'test', 'room::r1');
+            expect(m.findItemTag('grosac', 'room::r1').length).toBe(1);
+            expect(m.findItemTag('petitsac', 'room::r1').length).toBe(0);
+            const oGrosac = m.findItemTag('grosac', 'room::r1')[0];
+            const oSacoche = m.findItemTag('sacoche', 'room::r1')[0];
+            expect(m.setEntityLocation(oGrosac.id, oSacoche.id)).toBeFalsy();
         })
     });
-
 });

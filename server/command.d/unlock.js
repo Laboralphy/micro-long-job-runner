@@ -1,13 +1,18 @@
 const STRINGS = {
-    'codeApproach': 'Vous tapotez votre code sur le clavier de la porte.',
-    'keyNotFound': 'Vous n\'avez pas la clé de cette serrure.',
-    'keyFound': 'Vous déverouillez la porte avec %s.',
-    'codeEntered': 'Le code déverrouille la porte.',
-    'codeError': 'Le code ne fonctionne pas sur cette porte.',
-    'roomKeyFound': '%s déverrouille la porte %s.',
-    'roomCodeEntered': '%s déverrouille la porte %s à l\'aide d\'un code.',
+    'codeApproach': 'Vous tapotez un code sur le clavier de la porte.',
     'roomCodeApproach': '%s tapote un code sur le clavier de la porte %s.',
+    'keyFound': 'Vous déverouillez la porte avec %s.',
+    'roomKeyFound': '%s déverrouille la porte %s.',
+    'codeEntered': 'Le code déverrouille la porte.',
+    'roomCodeEntered': '%s déverrouille la porte %s à l\'aide d\'un code.',
+    'codeError': 'Code incorrect.',
     'roomCodeError': 'Une brève lueur rouge indique que la porte reste verrouillée.',
+    'noLock': 'Cette issue n\'est pas verrouilée.',
+    'noCodeRequired': 'Cette porte n\'est pas verrouillée par code.',
+    'codeRequired': 'Un code est requis pour ouvrir cette porte.',
+    'keyNotFound': 'Vous n\'avez pas la clé de cette serrure.',
+    'alreadyUnlocked': 'Cette porte est déjà déverrouillée.',
+    'keyDiscarded': 'Vous n\'avez plus besoin de %s.'
 };
 
 function help () {
@@ -18,22 +23,25 @@ function help () {
         },
         {
             section: 'Syntaxe',
-            text: 'unlock [{i direction}]'
+            text: 'unlock {i direction} [{i code}]'
         },
         {
             section: 'Description',
             text: [
-                "Cette action permet de déverrouiller une porte avec une clé en votre possession. Elle ne fonctionne qu'avec les porte verrouillée à clé",
-                "La commande doit être lancée avec un paramètre de direction pour définir la porte que vous souhaitez déverrouiller.",
-                "Si votre personnage possède la clé correspondant à la serrure, la porte sera déverrouillée.",
+                "Cette action permet de déverrouiller la porte dsignée par le paramètre de direction, soit  avec une clé en votre possession, soit avec un code qu'il faut spécifier en paramètre.",
+                "Il n'est pas nécessaire de spécifier la clé à utiliser : Si votre personnage possède la clé correspondant à la serrure, la porte sera déverrouillée. Par contre pour les portes fermées avec un code, il est nécessaire de spécifier le code en paramètre.",
             ]
         },
         {
             section: "Paramètres",
-            text: "objet : (optionel) Un identifiant local d'objet. Ces identifiants sont visibles quand on lance la commande sans paramètres."
+            text: [
+                "direction : pour désigner la porte que l'on souhaite déverrouiller.",
+                "code : (optionel) Certaine portes exigent un code secret pour s'ouvrir."
+            ]
         }
     ];
 }
+
 
 function main({ mud, pid }, sDirection, sCode) {
     if (!mud.checkDirection(pid, sDirection)) {
@@ -43,7 +51,19 @@ function main({ mud, pid }, sDirection, sCode) {
     // quel est le tag de la serrure ?
     const oDoorStatus = mud.getPlayerDoorStatus(pid, sDirection);
     const oPlayer = mud.getEntity(pid);
+    if (!oDoorStatus.lockable) {
+        mud.notifyPlayerFailure(pid, STRINGS.noLock);
+        return;
+    }
+    if (!oDoorStatus.locked) {
+        mud.notifyPlayerFailure(pid, STRINGS.alreadyUnlocked);
+        return;
+    }
     if (sCode) {
+        if (oDoorStatus.code === '') {
+            mud.notifyPlayerFailure(pid, STRINGS.noCodeRequired);
+            return;
+        }
         mud.notifyPlayer(pid, STRINGS.codeApproach);
         mud.notifyRoom(pid, STRINGS.roomCodeApproach);
         mud.notifyRoom(pid, STRINGS.roomCodeEntered, oPlayer.name, 'directions.a' + sDirection);
@@ -58,15 +78,24 @@ function main({ mud, pid }, sDirection, sCode) {
     } else {
         const sTag = oDoorStatus.key;
         // rechercher dans notre inventaire un item/clé ayant le tag
-        const idFoundKey = mud.findItemTag(sTag, pid);
-        if (idFoundKey) {
-            const oKey = mud.getEntity(idFoundKey);
+        const aItemsFound = mud.findItemTag(sTag, pid);
+        const oKey = aItemsFound[0];
+        if (oKey) {
             mud.setDoorLocked(oPlayer.location, sDirection, false);
             mud.notifyPlayerSuccess(pid, STRINGS.keyFound, oKey.name);
             mud.notifyRoom(pid, STRINGS.roomKeyFound, oPlayer.name, 'directions.a' + sDirection);
+            if (oDoorStatus.discardKey) {
+                mud.destroyEntity(oKey.id);
+                mud.notifyPlayer(pid, STRINGS.keyDiscarded, oKey.name);
+            }
+            return;
+        }
+        if (oDoorStatus.code) {
+            mud.notifyPlayerFailure(pid, STRINGS.codeRequired);
+        } else {
+            mud.notifyPlayerFailure(pid, STRINGS.keyNotFound);
         }
     }
-    mud.notifyPlayerFailure(pid, STRINGS.keyNotFound);
 }
 
 module.exports = { main, help };
